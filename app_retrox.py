@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/14fxfcb2e7HR7HaBrV6-zV2BK04RK9eOP
 """
 
-!pip install streamlit
-
 # =====================================================
 # 🌿 RetroX Surrogate Toolkit – Streamlit Web App
 # =====================================================
