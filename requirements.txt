@@ -6,4 +6,5 @@ plotly
 joblib
 shap
 scikit-learn
+xgboost
 # Force Streamlit Cloud refresh
