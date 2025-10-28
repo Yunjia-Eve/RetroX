@@ -1,8 +1,9 @@
-streamlit
+streamlit==1.39.0
 pandas
 numpy
-scikit-learn
-joblib
 matplotlib
+plotly
+joblib
 shap
+scikit-learn
 # Force Streamlit Cloud refresh
