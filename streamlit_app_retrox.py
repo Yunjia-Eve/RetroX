@@ -29,9 +29,9 @@ BASELINE['Total_kWh'] = BASELINE['Lighting_kWh'] + BASELINE['Cooling_kWh'] + BAS
 # 2️⃣ Load trained models
 # -----------------------------------------------------
 models = {
-    'Lighting_kWh': joblib.load('Lighting_kWh_model.pkl'),
-    'Cooling_kWh': joblib.load('Cooling_kWh_model.pkl'),
-    'Cooling_Load_kWh': joblib.load('Cooling_Load_kWh_model.pkl')
+    'Lighting_kWh': joblib.load('XGB_Lighting_kWh_model.pkl'),
+    'Cooling_kWh': joblib.load('RF_Cooling_kWh_model.pkl'),
+    'Cooling_Load_kWh': joblib.load('RF_Cooling_Load_kWh_model.pkl')
 }
 
 # -----------------------------------------------------
