@@ -26,56 +26,55 @@ BASELINE['Total_kWh'] = BASELINE['Lighting_kWh'] + BASELINE['Cooling_kWh'] + BAS
 BASELINE['EUI'] = 193.26
 
 # -----------------------------------------------------
-# 2️⃣ Load Models with Hybrid Default + User Selection
+# 2️⃣ Load Models with Hybrid Default + User Selection (Fixed)
 # -----------------------------------------------------
 st.sidebar.header("🧠 Model Selection")
 
 # Default best-performing models (based on validation)
 default_model_map = {
-    "Lighting_kWh": "XGB",
-    "Cooling_kWh": "LR",
-    "Cooling_Load_kWh": "LR"
+    "Lighting_kWh": "XGBoost (XGB)",
+    "Cooling_kWh": "Linear Regression (LR)",
+    "Cooling_Load_kWh": "Linear Regression (LR)"
 }
 
-# Available model names
+# Available model names shown in dropdown
 model_options = ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"]
+
+# Map friendly names → file prefixes
 prefix_map = {
     "Linear Regression (LR)": "LR",
     "Random Forest (RF)": "RF",
     "XGBoost (XGB)": "XGB"
 }
 
-# Function to get default index based on best model map
-def get_default_index(target_name):
-    best = default_model_map[target_name]
-    return model_options.index(f"{best if best != 'LR' else 'Linear Regression (LR)'}") \
-        if best in ["LR", "RF", "XGB"] else 0
-
-# Sidebar selection for each target with default model preselected
+# Sidebar selection for each target with hybrid defaults
 lighting_choice = st.sidebar.selectbox(
-    "Select model for Lighting (kWh):", model_options, index=get_default_index("Lighting_kWh")
+    "Select model for Lighting (kWh):", model_options,
+    index=model_options.index(default_model_map["Lighting_kWh"])
 )
 cooling_choice = st.sidebar.selectbox(
-    "Select model for Cooling (kWh):", model_options, index=get_default_index("Cooling_kWh")
+    "Select model for Cooling (kWh):", model_options,
+    index=model_options.index(default_model_map["Cooling_kWh"])
 )
 coolload_choice = st.sidebar.selectbox(
-    "Select model for Cooling Load (kWh):", model_options, index=get_default_index("Cooling_Load_kWh")
+    "Select model for Cooling Load (kWh):", model_options,
+    index=model_options.index(default_model_map["Cooling_Load_kWh"])
 )
 
-# Load models dynamically based on user selection
+# Load models dynamically based on user selections
 models = {
     "Lighting_kWh": joblib.load(f"{prefix_map[lighting_choice]}_Lighting_kWh_model.pkl"),
     "Cooling_kWh": joblib.load(f"{prefix_map[cooling_choice]}_Cooling_kWh_model.pkl"),
     "Cooling_Load_kWh": joblib.load(f"{prefix_map[coolload_choice]}_Cooling_Load_kWh_model.pkl")
 }
 
-# Show active configuration
+# Sidebar summary
 st.sidebar.markdown("**🧩 Models Loaded:**")
 st.sidebar.markdown(f"- Lighting → `{prefix_map[lighting_choice]}`")
 st.sidebar.markdown(f"- Cooling → `{prefix_map[cooling_choice]}`")
 st.sidebar.markdown(f"- Cooling Load → `{prefix_map[coolload_choice]}`")
 
-st.sidebar.caption("💡 Default combination (Lighting=XGB, Cooling=LR, CoolingLoad=LR) is preselected based on performance validation.")
+st.sidebar.caption("💡 Default: Lighting=XGB, Cooling=LR, Cooling_Load=LR (validated best combination)")
 
 
 # -----------------------------------------------------
