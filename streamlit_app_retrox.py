@@ -26,34 +26,46 @@ BASELINE['Total_kWh'] = BASELINE['Lighting_kWh'] + BASELINE['Cooling_kWh'] + BAS
 BASELINE['EUI'] = 193.26
 
 # -----------------------------------------------------
-# 2️⃣ Load Models with Selection
+# 2️⃣ Load Models with Individual Selection
 # -----------------------------------------------------
 st.sidebar.header("🧠 Model Selection")
 
 # Let user choose model type for each output
-model_choice = st.sidebar.selectbox(
-    "Select model type for prediction:",
+lighting_choice = st.sidebar.selectbox(
+    "Select model for Lighting (kWh):",
     ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"],
-    index=2  # default to XGB
+    index=2
+)
+cooling_choice = st.sidebar.selectbox(
+    "Select model for Cooling (kWh):",
+    ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"],
+    index=1
+)
+coolload_choice = st.sidebar.selectbox(
+    "Select model for Cooling Load (kWh):",
+    ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"],
+    index=1
 )
 
-# Map user-friendly names to file prefixes
+# Map friendly name → filename prefix
 prefix_map = {
     "Linear Regression (LR)": "LR",
     "Random Forest (RF)": "RF",
     "XGBoost (XGB)": "XGB"
 }
-prefix = prefix_map[model_choice]
 
-# Load chosen models dynamically
+# Load models dynamically based on user choice
 models = {
-    'Lighting_kWh': joblib.load(f'{prefix}_Lighting_kWh_model.pkl'),
-    'Cooling_kWh': joblib.load(f'{prefix}_Cooling_kWh_model.pkl'),
-    'Cooling_Load_kWh': joblib.load(f'{prefix}_Cooling_Load_kWh_model.pkl')
+    'Lighting_kWh': joblib.load(f"{prefix_map[lighting_choice]}_Lighting_kWh_model.pkl"),
+    'Cooling_kWh': joblib.load(f"{prefix_map[cooling_choice]}_Cooling_kWh_model.pkl"),
+    'Cooling_Load_kWh': joblib.load(f"{prefix_map[coolload_choice]}_Cooling_Load_kWh_model.pkl")
 }
 
-st.sidebar.markdown(f"**Using:** `{prefix}` models for all predictions")
-
+# Show which models are currently loaded
+st.sidebar.markdown("**🧩 Models Loaded:**")
+st.sidebar.markdown(f"- Lighting → `{prefix_map[lighting_choice]}`")
+st.sidebar.markdown(f"- Cooling → `{prefix_map[cooling_choice]}`")
+st.sidebar.markdown(f"- Cooling Load → `{prefix_map[coolload_choice]}`")
 
 # -----------------------------------------------------
 # 3️⃣ Sidebar Inputs
