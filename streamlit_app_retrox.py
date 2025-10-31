@@ -102,6 +102,7 @@ def flexible_input(label, ref_values, default=1):
     else:
         return st.sidebar.number_input(f"Custom {label} (SGD/unit)", value=float(ref_values[default]), step=5.0)
 
+# --- Existing cost items ---
 tariff = flexible_input("Electricity Tariff (kWh)", [0.30, 0.35, 0.40])
 carbon_factor = flexible_input("Carbon Factor (kgCO₂/kWh)", [0.40, 0.43, 0.45])
 glazing_cost_double = flexible_input("Glazing Double", [150, 200, 250])
@@ -112,6 +113,11 @@ shading_cost = flexible_input("Shading", [100, 120, 150])
 led_cost = flexible_input("LED", [20, 25, 30])
 hvac_cost = flexible_input("HVAC", [1500, 2000, 2500])
 albedo_cost = flexible_input("High Albedo", [20, 25, 30])
+
+# --- Newly added measures ---
+schedule_cost = flexible_input("Schedule Adjustment", [1500, 2000, 2500])        # SGD per project
+linearctrl_cost = flexible_input("Linear Control", [25, 30, 35])               # SGD per m² or sensor point
+
 
 # -----------------------------------------------------
 # 5️⃣ CAPEX Calculation
