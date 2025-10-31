@@ -26,13 +26,34 @@ BASELINE['Total_kWh'] = BASELINE['Lighting_kWh'] + BASELINE['Cooling_kWh'] + BAS
 BASELINE['EUI'] = 193.26
 
 # -----------------------------------------------------
-# 2️⃣ Load Models
+# 2️⃣ Load Models with Selection
 # -----------------------------------------------------
-models = {
-    'Lighting_kWh': joblib.load('XGB_Lighting_kWh_model.pkl'),
-    'Cooling_kWh': joblib.load('RF_Cooling_kWh_model.pkl'),
-    'Cooling_Load_kWh': joblib.load('RF_Cooling_Load_kWh_model.pkl')
+st.sidebar.header("🧠 Model Selection")
+
+# Let user choose model type for each output
+model_choice = st.sidebar.selectbox(
+    "Select model type for prediction:",
+    ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"],
+    index=2  # default to XGB
+)
+
+# Map user-friendly names to file prefixes
+prefix_map = {
+    "Linear Regression (LR)": "LR",
+    "Random Forest (RF)": "RF",
+    "XGBoost (XGB)": "XGB"
 }
+prefix = prefix_map[model_choice]
+
+# Load chosen models dynamically
+models = {
+    'Lighting_kWh': joblib.load(f'{prefix}_Lighting_kWh_model.pkl'),
+    'Cooling_kWh': joblib.load(f'{prefix}_Cooling_kWh_model.pkl'),
+    'Cooling_Load_kWh': joblib.load(f'{prefix}_Cooling_Load_kWh_model.pkl')
+}
+
+st.sidebar.markdown(f"**Using:** `{prefix}` models for all predictions")
+
 
 # -----------------------------------------------------
 # 3️⃣ Sidebar Inputs
