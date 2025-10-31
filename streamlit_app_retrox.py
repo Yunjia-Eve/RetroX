@@ -266,10 +266,13 @@ with tabs[4]:
 # 9️⃣ Interpretation + Download
 # -----------------------------------------------------
 msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-if (EUI < 120) or (energy_saving_pct >= 35): msg += " 🏆 Green Mark Platinum achieved!"
-elif (EUI < 135) or (energy_saving_pct >= 30): msg += " 🥇 Green Mark Gold achieved!"
-else: msg += " 🌱 Meets base efficiency level."
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += " 🏆 Green Mark Platinum achieved!"
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += " 🥇 Green Mark Gold achieved!"
+
 st.info(msg)
+
 
 summary = pd.DataFrame({
     'Lighting_kWh':[lighting_pred],'Cooling_kWh':[cooling_pred],'Room_kWh':[room_elec],'Total_Energy_kWh':[total_energy],
