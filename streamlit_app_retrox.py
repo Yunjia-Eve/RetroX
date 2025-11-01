@@ -162,24 +162,70 @@ with tabs[0]:
     fig.update_layout(barmode='group', title="Energy Breakdown vs Baseline", font=dict(color="#243C2C"))
     st.plotly_chart(fig, use_container_width=True)
 
-    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " \n\n Green Mark Platinum achieved!"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " \n\n Green Mark Gold achieved!"
-    st.info(msg)
+   # -----------------------------------------------------
+# 9️⃣ Interpretation + Download (updated with BCA quartile comparison)
+# -----------------------------------------------------
+msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+
+# --- Determine EUI quartile using BCA 2024 benchmark ---
+if EUI <= 109:
+    quartile_text = "Top Quartile (best-performing buildings)"
+    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+elif EUI <= 142:
+    quartile_text = "2nd Quartile"
+    comment = "Good performance – your building performs better than the national median."
+elif EUI <= 184:
+    quartile_text = "3rd Quartile"
+    comment = "Moderate performance – your building performs close to the national average."
+else:
+    quartile_text = "Bottom Quartile"
+    comment = "Below average – your building consumes more energy than typical offices."
+
+msg += f"\n\nCompared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the {quartile_text}, indicating: {comment}"
+
+# --- Green Mark achievement section ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\nGreen Mark Platinum achieved."
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\nGreen Mark Gold achieved."
+
+st.info(msg)
+
 
 # ENVIRONMENT TAB -----------------------------------------------------
 with tabs[1]:
     st.subheader("Environmental KPIs")
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
-    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " \n\n Green Mark Platinum achieved!"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " \n\n Green Mark Gold achieved!"
-    st.info(msg)
+    # -----------------------------------------------------
+# 9️⃣ Interpretation + Download (updated with BCA quartile comparison)
+# -----------------------------------------------------
+msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+
+# --- Determine EUI quartile using BCA 2024 benchmark ---
+if EUI <= 109:
+    quartile_text = "Top Quartile (best-performing buildings)"
+    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+elif EUI <= 142:
+    quartile_text = "2nd Quartile"
+    comment = "Good performance – your building performs better than the national median."
+elif EUI <= 184:
+    quartile_text = "3rd Quartile"
+    comment = "Moderate performance – your building performs close to the national average."
+else:
+    quartile_text = "Bottom Quartile"
+    comment = "Below average – your building consumes more energy than typical offices."
+
+msg += f"\n\nCompared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the {quartile_text}, indicating: {comment}"
+
+# --- Green Mark achievement section ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\nGreen Mark Platinum achieved."
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\nGreen Mark Gold achieved."
+
+st.info(msg)
+
 
 # ECONOMICS TAB -----------------------------------------------------
 with tabs[2]:
@@ -188,12 +234,35 @@ with tabs[2]:
     col1.metric("Retrofit Cost (SGD)", f"{CAPEX:,.0f}")
     col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
     col3.metric("Payback (years)", f"{payback_years:.1f}")
-    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " \n\n Green Mark Platinum achieved!"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " \n\n Green Mark Gold achieved!"
-    st.info(msg)
+# -----------------------------------------------------
+# 9️⃣ Interpretation + Download (updated with BCA quartile comparison)
+# -----------------------------------------------------
+msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+
+# --- Determine EUI quartile using BCA 2024 benchmark ---
+if EUI <= 109:
+    quartile_text = "Top Quartile (best-performing buildings)"
+    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+elif EUI <= 142:
+    quartile_text = "2nd Quartile"
+    comment = "Good performance – your building performs better than the national median."
+elif EUI <= 184:
+    quartile_text = "3rd Quartile"
+    comment = "Moderate performance – your building performs close to the national average."
+else:
+    quartile_text = "Bottom Quartile"
+    comment = "Below average – your building consumes more energy than typical offices."
+
+msg += f"\n\nCompared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the {quartile_text}, indicating: {comment}"
+
+# --- Green Mark achievement section ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\nGreen Mark Platinum achieved."
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\nGreen Mark Gold achieved."
+
+st.info(msg)
+
 
 # -----------------------------------------------------
 # 📊 Measure Impact Tab
