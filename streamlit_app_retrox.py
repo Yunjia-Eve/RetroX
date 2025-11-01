@@ -420,6 +420,21 @@ with tabs[3]:
     contrib_df["Impact_Index"] = w1 * contrib_df["Energy_Saving_kWh"] - w2 * (contrib_df["Cost_SGD"] / 1000)
     contrib_df = contrib_df.sort_values("Impact_Index", ascending=False)
 
+    # -------------------------------------------------
+# 🔟 Normalize Impact Index to 1–10 scale
+# -------------------------------------------------
+min_idx = contrib_df["Impact_Index"].min()
+max_idx = contrib_df["Impact_Index"].max()
+
+if max_idx != min_idx:
+    contrib_df["Impact_Index_Scaled"] = 1 + 9 * (contrib_df["Impact_Index"] - min_idx) / (max_idx - min_idx)
+else:
+    contrib_df["Impact_Index_Scaled"] = 5  # fallback if all same
+
+# Sort again by scaled score
+contrib_df = contrib_df.sort_values("Impact_Index_Scaled", ascending=False)
+
+    
     st.markdown("<p style='font-size:15px;'><b>Impact Index Formula:</b></p>", unsafe_allow_html=True)
     st.latex(r"""
     \small
@@ -430,6 +445,7 @@ with tabs[3]:
 
     st.dataframe(contrib_df[["Measure", "Energy_Saving_kWh", "Cost_SGD", "Impact_Index"]],
                  use_container_width=True)
+
 # Highlight best and show total score
 top_measure = contrib_df.iloc[0]
 total_index = contrib_df["Impact_Index"].sum()
