@@ -197,9 +197,9 @@ with tabs[0]:
     )
 
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\nGreen Mark Platinum achieved."
+        msg += "\n\nGreen Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\nGreen Mark Gold achieved."
+        msg += "\n\nGreen Mark Gold achieved!"
 
     st.markdown(
         "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
@@ -237,9 +237,9 @@ with tabs[1]:
     )
 
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\nGreen Mark Platinum achieved."
+        msg += "\n\nGreen Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\nGreen Mark Gold achieved."
+        msg += "\n\nGreen Mark Gold achieved!"
 
     st.markdown(
         "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
@@ -280,9 +280,9 @@ with tabs[2]:
     )
 
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\nGreen Mark Platinum achieved."
+        msg += "\n\nGreen Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\nGreen Mark Gold achieved."
+        msg += "\n\nGreen Mark Gold achieved!"
 
     st.markdown(
         "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
