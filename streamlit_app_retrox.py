@@ -200,10 +200,14 @@ with tabs[0]:
         f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
     )
 
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\nGreen Mark Platinum achieved!"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\nGreen Mark Gold achieved!"
+    # --- Green Mark achievement section (styled) ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
+
+st.markdown(msg, unsafe_allow_html=True)
+
 
     st.markdown(
         "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
