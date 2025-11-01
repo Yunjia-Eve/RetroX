@@ -219,27 +219,26 @@ with tabs[3]:
     st.subheader("📊 Measure Impact Analysis")
 
 # --------------------------
-# 1️⃣ SHAP computation setup (robust fix)
+# 1️⃣ SHAP computation setup (final working fix for XGB + RF + LR)
 # --------------------------
 st.caption("Real SHAP-based measure interpretation using your trained surrogate models.")
 
-# Pick main models
 energy_model = models['Cooling_kWh']
 lighting_model = models['Lighting_kWh']
 
-# Create small background data (10 synthetic samples)
-background = pd.DataFrame(np.tile(X_input.values, (10, 1)), columns=X_input.columns)
-background += np.random.normal(0, 0.1, background.shape)
+# create small background data
+background = pd.concat([X_input] * 10, ignore_index=True)
+background += np.random.normal(0, 0.05, background.shape)
 
-# --- SHAP explainer function ---
 def make_shap_values(model, X_background, X_target):
-    """Return absolute SHAP values for one-row input."""
     model_name = model.__class__.__name__
 
     try:
+        # ✅ For XGBoost, wrap .predict() in a lambda
         if "XGB" in model_name or "XGBRegressor" in model_name:
-            explainer = shap.TreeExplainer(model, data=X_background, feature_perturbation="interventional")
-            shap_vals = explainer.shap_values(X_target)
+            f = lambda data: model.predict(data)
+            explainer = shap.Explainer(f, X_background, algorithm="auto")
+            shap_vals = explainer(X_target)
         elif "Forest" in model_name or "DecisionTree" in model_name:
             explainer = shap.TreeExplainer(model, data=X_background)
             shap_vals = explainer.shap_values(X_target)
@@ -247,30 +246,31 @@ def make_shap_values(model, X_background, X_target):
             explainer = shap.LinearExplainer(model, X_background)
             shap_vals = explainer.shap_values(X_target)
 
-        # handle possible nested outputs
+        # handle nested array cases
         if isinstance(shap_vals, list):
             shap_vals = shap_vals[0]
+        if hasattr(shap_vals, "values"):
+            shap_vals = shap_vals.values
         return np.abs(shap_vals[0])
 
     except Exception as e:
-        st.warning(f"SHAP failed for {model_name}: {e}")
-        # fallback: return feature importances if available
+        st.warning(f"⚠️ SHAP failed for {model_name}: {e}")
         if hasattr(model, "feature_importances_"):
             vals = model.feature_importances_
             return vals / vals.sum()
         else:
             return np.zeros(X_target.shape[1])
 
-# --- Compute SHAP values safely ---
+# compute absolute SHAP impacts
 abs_shap_energy = make_shap_values(energy_model, background, X_input)
 abs_shap_light = make_shap_values(lighting_model, background, X_input)
 
-# Combine both energy-related impacts
 feature_labels = X_input.columns
 shap_energy_df = pd.DataFrame({
     'Feature': feature_labels,
     'Impact': abs_shap_energy + abs_shap_light
 })
+
 
     
     # --------------------------
