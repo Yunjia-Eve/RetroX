@@ -145,11 +145,19 @@ tabs = st.tabs(["Energy","Environment","Economics","Measure Impact","Trade-off E
 with tabs[0]:
     st.subheader("Energy Breakdown vs Baseline")
 
+    # --- 4 Key Energy Metrics in a single row ---
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Lighting (kWh)", f"{lighting_pred:,.0f}")
     col2.metric("Cooling (kWh)", f"{cooling_pred:,.0f}")
     col3.metric("Room Elec (kWh)", f"{room_elec:,.0f}")
     col4.metric("Total (kWh)", f"{total_energy:,.0f}")
+
+    # --- Move Energy Saving and EUI side-by-side ---
+    col5, col6, col7 = st.columns(3)
+    col5.metric("Energy Saving (%)", f"{energy_saving_pct:.1f}%")
+    col6.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
+    col7.metric("Cooling Load Saving (%)", f"{cool_saving_pct:.1f}%")
+
 
     st.metric("Energy Saving (%)", f"{energy_saving_pct:.1f}%")
     st.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
