@@ -166,7 +166,6 @@ energy_saving_pct = (BASELINE['Total_kWh'] - total_energy) / BASELINE['Total_kWh
 cool_saving_pct = (BASELINE['Cooling_Load_kWh'] - cool_load_pred) / BASELINE['Cooling_Load_kWh'] * 100
 EUI = total_energy / GFA
 carbon_emission = total_energy * carbon_factor
-annual_cost = total_energy * tariff
 annual_saving = (BASELINE['Total_kWh'] - total_energy) * tariff
 payback_years = CAPEX / annual_saving if annual_saving > 0 else None
 
@@ -206,13 +205,55 @@ with tabs[1]:
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
 
-# ECONOMICS TAB
+# -----------------------------------------------------
+# 💰 ECONOMICS TAB – Simplified and Corrected
+# -----------------------------------------------------
 with tabs[2]:
     st.subheader("💰 Economic KPIs")
-    st.metric("CAPEX (SGD)", f"{CAPEX:,.0f}")
-    st.metric("Annual Cost (SGD)", f"{annual_cost:,.0f}")
-    st.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
-    st.metric("Payback (years)", f"{payback_years:,.1f}" if payback_years else "—")
+
+    # -------------------------------------------------
+    # 1️⃣ Calculate KPIs
+    # -------------------------------------------------
+    # Total retrofit cost = sum of applied measure costs (already computed as CAPEX)
+    Retrofit_Cost_Capex = CAPEX
+
+    # Annual cost saving = Energy saving × electricity tariff
+    Annual_Cost_Saving = (BASELINE['Total_kWh'] - total_energy) * tariff
+
+    # Payback period (years)
+    if Annual_Cost_Saving > 0:
+        Payback_Period = Retrofit_Cost_Capex / Annual_Cost_Saving
+    else:
+        Payback_Period = None
+
+    # -------------------------------------------------
+    # 2️⃣ Display KPIs
+    # -------------------------------------------------
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Retrofit Cost (Capex, SGD)", f"{Retrofit_Cost_Capex:,.0f}")
+    col2.metric("Annual Cost Saving (SGD)", f"{Annual_Cost_Saving:,.0f}")
+    col3.metric(
+        "Payback Period (years)",
+        f"{Payback_Period:.1f}" if Payback_Period else "—"
+    )
+
+    # -------------------------------------------------
+    # 3️⃣ Show calculation formula for clarity
+    # -------------------------------------------------
+    st.markdown("<p style='font-size:15px;'><b>Economic KPI Formulas:</b></p>", unsafe_allow_html=True)
+    st.latex(r"""
+    \text{Retrofit Cost (Capex)} = \sum_{i=1}^{n} C_i
+    """)
+    st.latex(r"""
+    \text{Annual Cost Saving} = E_{\text{saving}} \times T_{\text{elec}}
+    """)
+    st.latex(r"""
+    \text{Payback Period (years)} =
+    \frac{\text{Capex}}{\text{Annual Cost Saving}}
+    """)
+
+    st.caption("These KPIs evaluate the economic feasibility of your selected retrofit combination.")
+
 
 # =====================================================
 # 📊 Measure Impact Tab – True Contribution Analysis
