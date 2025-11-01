@@ -239,8 +239,7 @@ with tabs[1]:
         value=carbon_intensity,
         domain={'x': [0, 1], 'y': [0, 0.85]},
         title={'text': "Operational Carbon Intensity (kg CO₂e/m²·yr)",
-               'font': {'size': 15, 'color': '#243C2C'},
-               'offset': 30},
+               'font': {'size': 15, 'color': '#243C2C'}},
         number={'font': {'size': 20, 'color': '#243C2C'}},
         gauge={
             'shape': 'angular',
@@ -259,7 +258,7 @@ with tabs[1]:
         }
     ))
     fig_carbon.update_layout(
-        margin=dict(t=40, b=10, l=10, r=10),
+        margin=dict(t=50, b=10, l=10, r=10),
         height=240,
         paper_bgcolor="white",
         font=dict(color="#243C2C", family="Arial"),
@@ -302,8 +301,7 @@ with tabs[2]:
         value=payback_years,
         domain={'x': [0, 1], 'y': [0, 0.85]},
         title={'text': "Retrofit Payback Period (Years)",
-               'font': {'size': 15, 'color': '#243C2C'},
-               'offset': 30},
+               'font': {'size': 15, 'color': '#243C2C'}},
         number={'font': {'size': 20, 'color': '#243C2C'}},
         gauge={
             'shape': 'angular',
@@ -322,7 +320,7 @@ with tabs[2]:
         }
     ))
     fig_payback.update_layout(
-        margin=dict(t=40, b=10, l=10, r=10),
+        margin=dict(t=50, b=10, l=10, r=10),
         height=240,
         paper_bgcolor="white",
         font=dict(color="#243C2C", family="Arial"),
