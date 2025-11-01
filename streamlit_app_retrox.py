@@ -1,5 +1,5 @@
 # =====================================================
-# 🌿 RetroX Toolkit – Streamlit Dashboard (v4.1 fixed)
+# 🌿 RetroX Toolkit – Streamlit Dashboard (v4.2)
 # =====================================================
 import streamlit as st
 import pandas as pd
@@ -42,7 +42,7 @@ models = {
 }
 
 # -----------------------------------------------------
-# 3️⃣ User inputs
+# 3️⃣ User Inputs
 # -----------------------------------------------------
 st.sidebar.header("🏗️ Building Inputs")
 glazing  = st.sidebar.selectbox("Glazing Type", ["Single", "Double", "Low-E"])
@@ -55,7 +55,7 @@ ctrl     = st.sidebar.radio("Linear Control", ["No", "Yes"])
 albedo   = st.sidebar.radio("High-Albedo Wall/Roof", ["Base", "Cool"])
 
 # -----------------------------------------------------
-# 4️⃣ Cost settings
+# 4️⃣ Cost Settings
 # -----------------------------------------------------
 st.sidebar.header("💰 Tariff & Cost Settings")
 def flexible_input(label, refs, default=1):
@@ -79,7 +79,7 @@ schedule_cost       = flexible_input("Schedule Adjustment", [1500,2000,2500])
 linearctrl_cost     = flexible_input("Linear Control", [25,30,35])
 
 # -----------------------------------------------------
-# 5️⃣ CAPEX calculation (fixed)
+# 5️⃣ CAPEX Calculation
 # -----------------------------------------------------
 CAPEX = 0
 if glazing == "Double": CAPEX += glazing_cost_double * WinA
@@ -90,12 +90,11 @@ if shading > 0: CAPEX += shading_cost * WinA
 if LPD < 10: CAPEX += led_cost * GFA
 if hvac > 24: CAPEX += hvac_cost
 if albedo == "Cool": CAPEX += albedo_cost * (RoofA + WallA)
-# ✅ Added missing ones
 if schedule == "Adjusted": CAPEX += schedule_cost
 if ctrl == "Yes": CAPEX += linearctrl_cost * GFA
 
 # -----------------------------------------------------
-# 6️⃣ Model input (consistent with training)
+# 6️⃣ Model Input (same schema as training)
 # -----------------------------------------------------
 feature_names = [
     "LPD_Wm2","HVAC_Setpoint_C","ShadingDepth_m",
@@ -108,7 +107,7 @@ X_input["LPD_Wm2"] = LPD
 X_input["HVAC_Setpoint_C"] = hvac
 X_input["ShadingDepth_m"] = shading
 X_input["Glazing_Low-E"] = 1 if glazing=="Low-E" else 0
-X_input["Glazing_Single"] = 1 if glazing=="Single" else 0   # Double → both 0
+X_input["Glazing_Single"] = 1 if glazing=="Single" else 0
 X_input["Insulation_Low"] = 1 if insul=="Low" else 0
 X_input["Insulation_Medium"] = 1 if insul=="Med" else 0
 X_input["ScheduleAdj_Base"] = 1 if schedule=="Base" else 0
@@ -132,51 +131,133 @@ annual_saving = (BASELINE["Total_kWh"]-total_energy)*tariff
 payback_years = CAPEX/annual_saving if annual_saving>0 else None
 
 # -----------------------------------------------------
-# 8️⃣ Tabs – Energy / Environment / Economics
+# 8️⃣ Tabs
 # -----------------------------------------------------
-st.title("🌿 RetroX Surrogate Toolkit v4.1")
+palette = ['#a3b565','#fcdd9d','#c4c3e3','#5979A0','#243C2C']
+st.title("🌿 RetroX Surrogate Toolkit v4.2")
 
-tabs = st.tabs(["⚡ Energy","🌍 Environment","💰 Economics"])
+tabs = st.tabs(["⚡ Energy","🌍 Environment","💰 Economics","📊 Measure Impact","⚖️ Trade-off Explorer"])
 
 # ENERGY TAB
 with tabs[0]:
     st.subheader("⚡ Energy Breakdown vs Baseline")
-    col1,col2,col3,col4 = st.columns(4)
-    col1.metric("Lighting (kWh)",f"{lighting_pred:,.0f}")
-    col2.metric("Cooling (kWh)",f"{cooling_pred:,.0f}")
-    col3.metric("Room Elec (kWh)",f"{room_elec:,.0f}")
-    col4.metric("Total (kWh)",f"{total_energy:,.0f}")
-    st.metric("Energy Saving (%)",f"{energy_saving_pct:.1f}%")
-    st.metric("EUI (kWh/m²·yr)",f"{EUI:.2f}")
-    st.metric("Cooling Load Saving (%)",f"{cool_saving_pct:.1f}%")
+    st.metric("Energy Saving (%)", f"{energy_saving_pct:.1f}%")
+    st.metric("Payback (years)", f"{payback_years:.1f}")
+    st.info(f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**.")
 
 # ENVIRONMENT TAB
 with tabs[1]:
     st.subheader("🌍 Environmental KPIs")
-    st.metric("Carbon Emission (kg CO₂e)",f"{carbon_emission:,.1f}")
-    st.metric("Carbon Factor (kgCO₂/kWh)",f"{carbon_factor:.2f}")
+    st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
+    st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
+    st.info(f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**.")
 
-# ECONOMIC TAB
+# ECONOMICS TAB
 with tabs[2]:
     st.subheader("💰 Economic KPIs")
-    Retrofit_Cost_Capex = CAPEX
-    Annual_Cost_Saving = annual_saving
-    Payback_Period = Payback_Years = payback_years
-
     col1,col2,col3 = st.columns(3)
-    col1.metric("Retrofit Cost (Capex, SGD)",f"{Retrofit_Cost_Capex:,.0f}")
-    col2.metric("Annual Cost Saving (SGD)",f"{Annual_Cost_Saving:,.0f}")
-    col3.metric("Payback Period (years)",f"{Payback_Period:.1f}" if Payback_Period else "—")
-
-    st.markdown("<p style='font-size:15px;'><b>Economic KPI Formulas</b></p>", unsafe_allow_html=True)
-    st.latex(r"\text{Capex}=\sum_i C_i")
-    st.latex(r"\text{Annual Cost Saving}=E_{\text{saving}}\times T_{\text{elec}}")
-    st.latex(r"\text{Payback}=\frac{\text{Capex}}{\text{Annual Cost Saving}}")
+    col1.metric("Retrofit Cost (SGD)", f"{CAPEX:,.0f}")
+    col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
+    col3.metric("Payback (years)", f"{payback_years:.1f}")
+    st.info(f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**.")
 
 # -----------------------------------------------------
-# 9️⃣ Summary message
+# 📊 Measure Impact Tab (restored)
 # -----------------------------------------------------
-msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-if (EUI<120) or (energy_saving_pct>=35): msg += " 🏆 Green Mark Platinum achieved!"
-elif (EUI<135) or (energy_saving_pct>=30): msg += " 🥇 Green Mark Gold achieved!"
-st.info(msg)
+with tabs[3]:
+    st.subheader("📊 Measure Contribution Analysis")
+    st.caption("Compare each retrofit measure’s contribution to total energy saving and retrofit cost.")
+
+    # --- baseline (no retrofit) ---
+    X_base = X_input.copy()
+    X_base.iloc[0] = 0
+    X_base["LPD_Wm2"]=12; X_base["HVAC_Setpoint_C"]=24; X_base["ShadingDepth_m"]=0
+    X_base["Glazing_Single"]=1; X_base["Insulation_Low"]=1; X_base["ScheduleAdj_Base"]=1
+    X_base["LinearControl_Yes"]=0; X_base["HighAlbedoWall_Cool"]=0
+    E_base = models["Lighting_kWh"].predict(X_base)[0]+models["Cooling_kWh"].predict(X_base)[0]+BASELINE["Room_kWh"]
+
+    measures = ["Glazing","Insulation","LPD","HVAC","Shading","Schedule","LinearControl","Albedo"]
+    results=[]
+    for m in measures:
+        X_test=X_base.copy()
+        if m=="Glazing" and glazing in ["Double","Low-E"]:
+            if glazing=="Low-E": X_test["Glazing_Low-E"]=1; X_test["Glazing_Single"]=0
+        elif m=="Insulation" and insul in ["Med","High"]:
+            X_test["Insulation_Low"]=0; X_test["Insulation_Medium"]=1 if insul=="Med" else 0
+        elif m=="LPD" and LPD<12: X_test["LPD_Wm2"]=LPD
+        elif m=="HVAC" and hvac>24: X_test["HVAC_Setpoint_C"]=hvac
+        elif m=="Shading" and shading>0: X_test["ShadingDepth_m"]=shading
+        elif m=="Schedule" and schedule=="Adjusted": X_test["ScheduleAdj_Base"]=0
+        elif m=="LinearControl" and ctrl=="Yes": X_test["LinearControl_Yes"]=1
+        elif m=="Albedo" and albedo=="Cool": X_test["HighAlbedoWall_Cool"]=1
+        if X_test.equals(X_base): continue
+
+        E_new = models["Lighting_kWh"].predict(X_test)[0]+models["Cooling_kWh"].predict(X_test)[0]+BASELINE["Room_kWh"]
+        ΔE = E_base - E_new
+        ΔC = 0
+        if m=="Glazing": ΔC = glazing_cost_double*WinA if glazing=="Double" else glazing_cost_lowe*WinA
+        elif m=="Insulation": ΔC = insul_cost_med*total_wall_roof if insul=="Med" else insul_cost_high*total_wall_roof
+        elif m=="LPD": ΔC = led_cost*GFA
+        elif m=="HVAC": ΔC = hvac_cost
+        elif m=="Shading": ΔC = shading_cost*WinA
+        elif m=="Schedule": ΔC = schedule_cost
+        elif m=="LinearControl": ΔC = linearctrl_cost*GFA
+        elif m=="Albedo": ΔC = albedo_cost*total_wall_roof
+        results.append({"Measure":m,"Energy_Saving_kWh":ΔE,"Cost_SGD":ΔC})
+
+    contrib_df=pd.DataFrame(results).sort_values("Energy_Saving_kWh",ascending=False)
+
+    impact_choice=st.selectbox("Choose Visualization",["Bar","Waterfall","Radar"])
+
+    if impact_choice=="Bar":
+        fig1=px.bar(contrib_df,x="Energy_Saving_kWh",y="Measure",orientation="h",
+                    color="Measure",color_discrete_sequence=palette,
+                    labels={"Energy_Saving_kWh":"Energy Saving (kWh)"})
+        st.plotly_chart(fig1,use_container_width=True)
+        fig2=px.bar(contrib_df,x="Cost_SGD",y="Measure",orientation="h",
+                    color="Measure",color_discrete_sequence=palette,
+                    labels={"Cost_SGD":"Retrofit Cost (SGD)"})
+        st.plotly_chart(fig2,use_container_width=True)
+
+    elif impact_choice=="Waterfall":
+        fig3=go.Figure(go.Waterfall(x=contrib_df["Measure"],y=contrib_df["Energy_Saving_kWh"],
+                    connector={"line":{"color":"#243C2C"}},increasing={"marker":{"color":"#a3b565"}}))
+        fig3.update_layout(title="Energy Saving Contribution (kWh)")
+        st.plotly_chart(fig3,use_container_width=True)
+
+        fig4=go.Figure(go.Waterfall(x=contrib_df["Measure"],y=contrib_df["Cost_SGD"],
+                    connector={"line":{"color":"#243C2C"}},increasing={"marker":{"color":"#c4c3e3"}}))
+        fig4.update_layout(title="Retrofit Cost Contribution (SGD)")
+        st.plotly_chart(fig4,use_container_width=True)
+
+    else:
+        cats=list(contrib_df["Measure"])+[contrib_df["Measure"].iloc[0]]
+        valsE=list(contrib_df["Energy_Saving_kWh"])+[contrib_df["Energy_Saving_kWh"].iloc[0]]
+        valsC=list(contrib_df["Cost_SGD"])+[contrib_df["Cost_SGD"].iloc[0]]
+        fig5=go.Figure(go.Scatterpolar(r=valsE,theta=cats,fill="toself",marker=dict(color="#a3b565")))
+        fig5.update_layout(title="Energy Saving Contribution (kWh)")
+        st.plotly_chart(fig5,use_container_width=True)
+        fig6=go.Figure(go.Scatterpolar(r=valsC,theta=cats,fill="toself",marker=dict(color="#c4c3e3")))
+        fig6.update_layout(title="Retrofit Cost Contribution (SGD)")
+        st.plotly_chart(fig6,use_container_width=True)
+
+    # --- Weighted Impact Index ---
+    st.subheader("🎛️ Weighted Impact Index")
+    st.caption("Adjust weights to balance energy saving and cost efficiency.")
+    w1=st.slider("Weight: Energy Saving",0.0,1.0,0.6)
+    w2=st.slider("Weight: Retrofit Cost (inverse)",0.0,1.0,0.4)
+    contrib_df["Impact_Index"]=w1*contrib_df["Energy_Saving_kWh"]-w2*(contrib_df["Cost_SGD"]/1000)
+    min_idx,max_idx=contrib_df["Impact_Index"].min(),contrib_df["Impact_Index"].max()
+    contrib_df["Impact_Index_Scaled"]=5 if max_idx==min_idx else 1+9*(contrib_df["Impact_Index"]-min_idx)/(max_idx-min_idx)
+    contrib_df=contrib_df.sort_values("Impact_Index_Scaled",ascending=False)
+    st.latex(r"\small \text{Impact Index}_i=(w_1\times E_{\text{saving}})-(w_2\times\frac{Cost}{1{,}000})")
+    fig7=px.bar(contrib_df,x="Impact_Index_Scaled",y="Measure",orientation="h",color="Measure",
+                color_discrete_sequence=palette,title="Weighted Impact Index (1–10 scale)")
+    st.plotly_chart(fig7,use_container_width=True)
+
+# -----------------------------------------------------
+# ⚖️ Trade-off Explorer Tab (restored)
+# -----------------------------------------------------
+with tabs[4]:
+    st.subheader("⚖️ Trade-off Explorer")
+    trade_type=st.selectbox("Choose Visualization",["Pareto Front","2D Contour","
