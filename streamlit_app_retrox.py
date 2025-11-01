@@ -175,9 +175,9 @@ with tabs[1]:
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " 🏆 Green Mark Platinum achieved!"
+        msg += " \n\n🏆 Green Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " 🥇 Green Mark Gold achieved!"
+        msg += " \n\n🥇 Green Mark Gold achieved!"
     st.info(msg)
 
 # ECONOMICS TAB -----------------------------------------------------
