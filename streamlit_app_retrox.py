@@ -164,7 +164,7 @@ with tabs[0]:
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=energy_df['Category'], y=energy_df['Baseline (kWh)'],
-        name='Baseline', marker_color="#c4c3e3"
+        name='Baseline', marker_color="#504e76"
     ))
     fig.add_trace(go.Bar(
         x=energy_df['Category'], y=energy_df['Retrofit (kWh)'],
