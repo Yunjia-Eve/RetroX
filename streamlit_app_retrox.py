@@ -269,24 +269,7 @@ with tabs[1]:
         f"classified as **{carbon_level}**. {carbon_comment}"
     )
 
-    # --- Determine EUI quartile using BCA 2024 benchmark ---
-    if EUI <= 109:
-        quartile_text = "Top Quartile (best-performing buildings)"
-        comment = "Excellent – among Singapore’s most energy-efficient offices."
-    elif EUI <= 142:
-        quartile_text = "2nd Quartile"
-        comment = "Good – performs better than the national median."
-    elif EUI <= 184:
-        quartile_text = "3rd Quartile"
-        comment = "Moderate – close to the national average."
-    else:
-        quartile_text = "Bottom Quartile"
-        comment = "Below average – higher energy consumption than typical offices."
-
-    msg += (
-        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
-        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
-    )
+   
 
     # --- Green Mark achievement section ---
     if (EUI < 120) or (energy_saving_pct >= 35):
