@@ -214,90 +214,108 @@ with tabs[2]:
     st.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
     st.metric("Payback (years)", f"{payback_years:,.1f}" if payback_years else "—")
 
-# MEASURE IMPACT TAB
+# =====================================================
+# 📊 Measure Impact Tab – Final Version
+# =====================================================
 with tabs[3]:
     st.subheader("📊 Measure Impact Analysis")
+    st.caption("Real SHAP-based interpretation using trained surrogate models.")
 
-# --------------------------
-# 1️⃣ SHAP computation setup (final working fix for XGB + RF + LR)
-# --------------------------
-st.caption("Real SHAP-based measure interpretation using your trained surrogate models.")
+    # -------------------------------------------------
+    # 1️⃣ SHAP COMPUTATION (robust + XGB safe)
+    # -------------------------------------------------
+    energy_model = models['Cooling_kWh']
+    lighting_model = models['Lighting_kWh']
 
-energy_model = models['Cooling_kWh']
-lighting_model = models['Lighting_kWh']
+    # Create small background (10 samples)
+    background = pd.concat([X_input] * 10, ignore_index=True)
+    background += np.random.normal(0, 0.05, background.shape)
 
-# create small background data
-background = pd.concat([X_input] * 10, ignore_index=True)
-background += np.random.normal(0, 0.05, background.shape)
+    def make_shap_values(model, X_background, X_target):
+        """Compute SHAP safely for any model type."""
+        model_name = model.__class__.__name__
+        try:
+            # ✅ For XGBoost wrap model.predict in a callable
+            if "XGB" in model_name or "XGBRegressor" in model_name:
+                f = lambda data: model.predict(data)
+                explainer = shap.Explainer(f, X_background, algorithm="auto")
+                shap_vals = explainer(X_target)
+            elif "Forest" in model_name or "DecisionTree" in model_name:
+                explainer = shap.TreeExplainer(model, data=X_background)
+                shap_vals = explainer.shap_values(X_target)
+            else:
+                explainer = shap.LinearExplainer(model, X_background)
+                shap_vals = explainer.shap_values(X_target)
 
-def make_shap_values(model, X_background, X_target):
-    model_name = model.__class__.__name__
+            # Normalize output
+            if isinstance(shap_vals, list):
+                shap_vals = shap_vals[0]
+            if hasattr(shap_vals, "values"):
+                shap_vals = shap_vals.values
+            return np.abs(shap_vals[0])
 
-    try:
-        # ✅ For XGBoost, wrap .predict() in a lambda
-        if "XGB" in model_name or "XGBRegressor" in model_name:
-            f = lambda data: model.predict(data)
-            explainer = shap.Explainer(f, X_background, algorithm="auto")
-            shap_vals = explainer(X_target)
-        elif "Forest" in model_name or "DecisionTree" in model_name:
-            explainer = shap.TreeExplainer(model, data=X_background)
-            shap_vals = explainer.shap_values(X_target)
-        else:
-            explainer = shap.LinearExplainer(model, X_background)
-            shap_vals = explainer.shap_values(X_target)
+        except Exception as e:
+            st.warning(f"⚠️ SHAP failed for {model_name}: {e}")
+            if hasattr(model, "feature_importances_"):
+                vals = model.feature_importances_
+                return vals / vals.sum()
+            else:
+                return np.zeros(X_target.shape[1])
 
-        # handle nested array cases
-        if isinstance(shap_vals, list):
-            shap_vals = shap_vals[0]
-        if hasattr(shap_vals, "values"):
-            shap_vals = shap_vals.values
-        return np.abs(shap_vals[0])
+    abs_shap_energy = make_shap_values(energy_model, background, X_input)
+    abs_shap_light = make_shap_values(lighting_model, background, X_input)
 
-    except Exception as e:
-        st.warning(f"⚠️ SHAP failed for {model_name}: {e}")
-        if hasattr(model, "feature_importances_"):
-            vals = model.feature_importances_
-            return vals / vals.sum()
-        else:
-            return np.zeros(X_target.shape[1])
+    # Combine both (proxy for energy impact)
+    feature_labels = X_input.columns
+    shap_energy_df = pd.DataFrame({
+        'Feature': feature_labels,
+        'Impact': abs_shap_energy + abs_shap_light
+    })
 
-# compute absolute SHAP impacts
-abs_shap_energy = make_shap_values(energy_model, background, X_input)
-abs_shap_light = make_shap_values(lighting_model, background, X_input)
+    # Retrofit cost proxy (simple normalized scaling)
+    cost_proxy = np.array([
+        (14 - LPD) / 6,            # LPD
+        (hvac - 24) / 3,           # HVAC
+        shading,                   # Shading
+        1 if glazing != 'Single' else 0,
+        1 if insul != 'Low' else 0,
+        1 if schedule != 'Base' else 0,
+        1 if ctrl == 'Yes' else 0,
+        1 if albedo == 'Cool' else 0,
+        0, 0                       # placeholders for unmatched cols
+    ])[:len(feature_labels)]
+    shap_cost_df = pd.DataFrame({'Feature': feature_labels, 'Impact': np.abs(cost_proxy)})
 
-feature_labels = X_input.columns
-shap_energy_df = pd.DataFrame({
-    'Feature': feature_labels,
-    'Impact': abs_shap_energy + abs_shap_light
-})
-
-
-    
-    # --------------------------
-    # 2️⃣ Visualization selection
-    # --------------------------
+    # -------------------------------------------------
+    # 2️⃣ VISUALIZATION SELECTION
+    # -------------------------------------------------
     impact_choice = st.selectbox(
-        "Choose Visualization",
-        ["SHAP Bar", "SHAP Dot", "Waterfall", "Radar"]
+        "Choose Visualization", ["SHAP Bar", "SHAP Dot", "Waterfall", "Radar"]
     )
-
     palette = ['#5979A0', '#A8B5C5', '#EDE59D', '#7A9544', '#243C2C']
 
     def plot_shap(df, title):
         fig = px.bar(
             df.sort_values("Impact", ascending=True),
             x='Impact', y='Feature', orientation='h',
-            title=title, color='Feature', color_discrete_sequence=palette,
-            hover_data={'Impact': ':.2f'}
+            title=title, color='Feature',
+            color_discrete_sequence=palette, hover_data={'Impact': ':.2f'}
         )
         fig.update_traces(hovertemplate='%{y}: %{x:.2f}')
         st.plotly_chart(fig, use_container_width=True)
 
+    colA, colB = st.columns(2)
+    with colA:
+        st.markdown("**Energy Saving Impact (SHAP)**")
+    with colB:
+        st.markdown("**Retrofit Cost Impact (Proxy)**")
+
     if impact_choice == "SHAP Bar":
-        st.markdown("**Energy Saving Influence (from SHAP)**")
-        plot_shap(shap_energy_df, "Feature Importance – Energy Saving")
-        st.markdown("**Retrofit Cost Influence (proxy)**")
-        plot_shap(shap_cost_df, "Feature Importance – Retrofit Cost")
+        colA, colB = st.columns(2)
+        with colA:
+            plot_shap(shap_energy_df, "Energy Saving Feature Importance")
+        with colB:
+            plot_shap(shap_cost_df, "Retrofit Cost Feature Importance")
 
     elif impact_choice == "SHAP Dot":
         fig = px.scatter(
@@ -327,17 +345,16 @@ shap_energy_df = pd.DataFrame({
         cats = list(shap_energy_df['Feature']) + [shap_energy_df['Feature'].iloc[0]]
         vals = list(shap_energy_df['Impact']) + [shap_energy_df['Impact'].iloc[0]]
         fig = go.Figure(data=go.Scatterpolar(
-            r=vals, theta=cats, fill='toself',
-            marker=dict(color='#7A9544')
+            r=vals, theta=cats, fill='toself', marker=dict(color='#7A9544')
         ))
         fig.update_layout(title="Radar Chart of Energy Measure Impacts",
-                          polar=dict(radialaxis=dict(visible=True, showline=True)),
+                          polar=dict(radialaxis=dict(visible=True)),
                           font=dict(color='#243C2C'))
         st.plotly_chart(fig, use_container_width=True)
 
-    # --------------------------
-    # 3️⃣ Impact Index Calculation
-    # --------------------------
+    # -------------------------------------------------
+    # 3️⃣ IMPACT INDEX CALCULATION
+    # -------------------------------------------------
     st.subheader("🎛️ Adjustable Impact Index")
 
     w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.4)
