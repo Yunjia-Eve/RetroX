@@ -194,7 +194,6 @@ with tabs[0]:
         height=300,
         paper_bgcolor="white",
         font={'color': '#243C2C', 'family': 'Arial'},
-        gauge_shape='angular'
     )
     
     st.plotly_chart(fig, use_container_width=True)
