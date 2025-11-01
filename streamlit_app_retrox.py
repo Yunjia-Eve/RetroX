@@ -139,129 +139,156 @@ st.title("RetroX SG Toolkit")
 
 tabs = st.tabs(["Energy","Environment","Economics","Measure Impact","Trade-off Explorer"])
 
-# ENERGY TAB -----------------------------------------------------
+# -----------------------------------------------------
+# ⚡ ENERGY TAB
+# -----------------------------------------------------
 with tabs[0]:
     st.subheader("Energy Breakdown vs Baseline")
+
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Lighting (kWh)", f"{lighting_pred:,.0f}")
     col2.metric("Cooling (kWh)", f"{cooling_pred:,.0f}")
     col3.metric("Room Elec (kWh)", f"{room_elec:,.0f}")
     col4.metric("Total (kWh)", f"{total_energy:,.0f}")
+
     st.metric("Energy Saving (%)", f"{energy_saving_pct:.1f}%")
     st.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
     st.metric("Cooling Load Saving (%)", f"{cool_saving_pct:.1f}%")
 
+    # --- Energy Breakdown Bar Chart ---
     energy_df = pd.DataFrame({
         'Category': ['Lighting', 'Cooling', 'Room'],
         'Baseline (kWh)': [BASELINE['Lighting_kWh'], BASELINE['Cooling_kWh'], BASELINE['Room_kWh']],
         'Retrofit (kWh)': [lighting_pred, cooling_pred, room_elec]
     })
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=energy_df['Category'], y=energy_df['Baseline (kWh)'], name='Baseline', marker_color="#c4c3e3"))
-    fig.add_trace(go.Bar(x=energy_df['Category'], y=energy_df['Retrofit (kWh)'], name='Retrofit', marker_color="#a3b565"))
+    fig.add_trace(go.Bar(
+        x=energy_df['Category'], y=energy_df['Baseline (kWh)'],
+        name='Baseline', marker_color="#c4c3e3"
+    ))
+    fig.add_trace(go.Bar(
+        x=energy_df['Category'], y=energy_df['Retrofit (kWh)'],
+        name='Retrofit', marker_color="#a3b565"
+    ))
     fig.update_layout(barmode='group', title="Energy Breakdown vs Baseline", font=dict(color="#243C2C"))
     st.plotly_chart(fig, use_container_width=True)
 
-   # -----------------------------------------------------
-# 9️⃣ Interpretation + Download (updated with BCA quartile comparison)
+    # -----------------------------------------------------
+    # 💬 Performance Summary + BCA 2024 Benchmark Reference
+    # -----------------------------------------------------
+    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+
+    if EUI <= 109:
+        quartile_text = "Top Quartile (best-performing buildings)"
+        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+    elif EUI <= 142:
+        quartile_text = "2nd Quartile"
+        comment = "Good performance – your building performs better than the national median."
+    elif EUI <= 184:
+        quartile_text = "3rd Quartile"
+        comment = "Moderate performance – your building performs close to the national average."
+    else:
+        quartile_text = "Bottom Quartile"
+        comment = "Below average – your building consumes more energy than typical offices."
+
+    msg += (
+        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
+        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
+    )
+
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\nGreen Mark Platinum achieved."
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\nGreen Mark Gold achieved."
+
+    st.markdown(
+        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+        unsafe_allow_html=True
+    )
+    st.info(msg)
+
+
 # -----------------------------------------------------
-msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-
-# --- Determine EUI quartile using BCA 2024 benchmark ---
-if EUI <= 109:
-    quartile_text = "Top Quartile (best-performing buildings)"
-    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
-elif EUI <= 142:
-    quartile_text = "2nd Quartile"
-    comment = "Good performance – your building performs better than the national median."
-elif EUI <= 184:
-    quartile_text = "3rd Quartile"
-    comment = "Moderate performance – your building performs close to the national average."
-else:
-    quartile_text = "Bottom Quartile"
-    comment = "Below average – your building consumes more energy than typical offices."
-
-msg += f"\n\nCompared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the {quartile_text}, indicating: {comment}"
-
-# --- Green Mark achievement section ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\nGreen Mark Platinum achieved."
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\nGreen Mark Gold achieved."
-
-st.info(msg)
-
-
-# ENVIRONMENT TAB -----------------------------------------------------
+# 🌍 ENVIRONMENT TAB
+# -----------------------------------------------------
 with tabs[1]:
     st.subheader("Environmental KPIs")
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
-    # -----------------------------------------------------
-# 9️⃣ Interpretation + Download (updated with BCA quartile comparison)
+
+    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+
+    if EUI <= 109:
+        quartile_text = "Top Quartile (best-performing buildings)"
+        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+    elif EUI <= 142:
+        quartile_text = "2nd Quartile"
+        comment = "Good performance – your building performs better than the national median."
+    elif EUI <= 184:
+        quartile_text = "3rd Quartile"
+        comment = "Moderate performance – your building performs close to the national average."
+    else:
+        quartile_text = "Bottom Quartile"
+        comment = "Below average – your building consumes more energy than typical offices."
+
+    msg += (
+        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
+        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
+    )
+
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\nGreen Mark Platinum achieved."
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\nGreen Mark Gold achieved."
+
+    st.markdown(
+        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+        unsafe_allow_html=True
+    )
+    st.info(msg)
+
+
 # -----------------------------------------------------
-msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
-
-# --- Determine EUI quartile using BCA 2024 benchmark ---
-if EUI <= 109:
-    quartile_text = "Top Quartile (best-performing buildings)"
-    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
-elif EUI <= 142:
-    quartile_text = "2nd Quartile"
-    comment = "Good performance – your building performs better than the national median."
-elif EUI <= 184:
-    quartile_text = "3rd Quartile"
-    comment = "Moderate performance – your building performs close to the national average."
-else:
-    quartile_text = "Bottom Quartile"
-    comment = "Below average – your building consumes more energy than typical offices."
-
-msg += f"\n\nCompared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the {quartile_text}, indicating: {comment}"
-
-# --- Green Mark achievement section ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\nGreen Mark Platinum achieved."
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\nGreen Mark Gold achieved."
-
-st.info(msg)
-
-
-# ECONOMICS TAB -----------------------------------------------------
+# 💰 ECONOMICS TAB
+# -----------------------------------------------------
 with tabs[2]:
     st.subheader("Economic KPIs")
-    col1,col2,col3 = st.columns(3)
+
+    col1, col2, col3 = st.columns(3)
     col1.metric("Retrofit Cost (SGD)", f"{CAPEX:,.0f}")
     col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
     col3.metric("Payback (years)", f"{payback_years:.1f}")
-# -----------------------------------------------------
-# 9️⃣ Interpretation + Download (updated with BCA quartile comparison)
-# -----------------------------------------------------
-msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
 
-# --- Determine EUI quartile using BCA 2024 benchmark ---
-if EUI <= 109:
-    quartile_text = "Top Quartile (best-performing buildings)"
-    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
-elif EUI <= 142:
-    quartile_text = "2nd Quartile"
-    comment = "Good performance – your building performs better than the national median."
-elif EUI <= 184:
-    quartile_text = "3rd Quartile"
-    comment = "Moderate performance – your building performs close to the national average."
-else:
-    quartile_text = "Bottom Quartile"
-    comment = "Below average – your building consumes more energy than typical offices."
+    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
 
-msg += f"\n\nCompared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the {quartile_text}, indicating: {comment}"
+    if EUI <= 109:
+        quartile_text = "Top Quartile (best-performing buildings)"
+        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+    elif EUI <= 142:
+        quartile_text = "2nd Quartile"
+        comment = "Good performance – your building performs better than the national median."
+    elif EUI <= 184:
+        quartile_text = "3rd Quartile"
+        comment = "Moderate performance – your building performs close to the national average."
+    else:
+        quartile_text = "Bottom Quartile"
+        comment = "Below average – your building consumes more energy than typical offices."
 
-# --- Green Mark achievement section ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\nGreen Mark Platinum achieved."
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\nGreen Mark Gold achieved."
+    msg += (
+        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
+        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
+    )
 
-st.info(msg)
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\nGreen Mark Platinum achieved."
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\nGreen Mark Gold achieved."
+
+    st.markdown(
+        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+        unsafe_allow_html=True
+    )
+    st.info(msg)
 
 
 # -----------------------------------------------------
