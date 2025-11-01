@@ -410,17 +410,26 @@ with tabs[3]:
                            font=dict(color='#243C2C'))
         st.plotly_chart(fig6, use_container_width=True)
 
-    # -------------------------------------------------
-    # 4️⃣ Impact Index (for weighted ranking)
-    # -------------------------------------------------
-    st.subheader("🎛️ Weighted Impact Index")
+# -------------------------------------------------
+# 4️⃣ Impact Index (for weighted ranking)
+# -------------------------------------------------
+st.subheader("🎛️ Weighted Impact Index")
+st.caption("Adjust the weights to balance between energy saving and retrofit cost efficiency.")
+
+# --- Weight sliders ---
+col1, col2 = st.columns(2)
+with col1:
     w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.6)
+with col2:
     w2 = st.slider("Weight: Retrofit Cost (inverse)", 0.0, 1.0, 0.4)
 
-    contrib_df["Impact_Index"] = w1 * contrib_df["Energy_Saving_kWh"] - w2 * (contrib_df["Cost_SGD"] / 1000)
-    contrib_df = contrib_df.sort_values("Impact_Index", ascending=False)
+# --- Compute raw index ---
+contrib_df["Impact_Index"] = (
+    w1 * contrib_df["Energy_Saving_kWh"] -
+    w2 * (contrib_df["Cost_SGD"] / 1000)
+)
 
-    # -------------------------------------------------
+# -------------------------------------------------
 # 🔟 Normalize Impact Index to 1–10 scale
 # -------------------------------------------------
 min_idx = contrib_df["Impact_Index"].min()
@@ -431,35 +440,70 @@ if max_idx != min_idx:
 else:
     contrib_df["Impact_Index_Scaled"] = 5  # fallback if all same
 
-# Sort again by scaled score
-contrib_df = contrib_df.sort_values("Impact_Index_Scaled", ascending=False)
+# Sort by scaled index
+contrib_df = contrib_df.sort_values("Impact_Index_Scaled", ascending=False).reset_index(drop=True)
 
-    
-    st.markdown("<p style='font-size:15px;'><b>Impact Index Formula:</b></p>", unsafe_allow_html=True)
-    st.latex(r"""
-    \small
-    \text{Impact Index}_i =
-    (w_1 \times \text{Energy Saving (kWh)}) -
-    (w_2 \times \frac{\text{Cost (SGD)}}{1{,}000})
-    """)
+# -------------------------------------------------
+# 🧮 Display formula + table
+# -------------------------------------------------
+st.markdown("<p style='font-size:15px;'><b>Impact Index Formula:</b></p>", unsafe_allow_html=True)
+st.latex(r"""
+\small
+\text{Impact Index}_i =
+( w_1 \times \text{Energy Saving (kWh)} ) -
+( w_2 \times \frac{\text{Cost (SGD)}}{1{,}000} )
+""")
 
-    st.dataframe(contrib_df[["Measure", "Energy_Saving_kWh", "Cost_SGD", "Impact_Index"]],
-                 use_container_width=True)
+st.markdown("**Scaled 1–10 score makes comparisons easier:**")
+st.dataframe(
+    contrib_df[["Measure", "Energy_Saving_kWh", "Cost_SGD", "Impact_Index_Scaled"]],
+    use_container_width=True
+)
 
-# Highlight best and show total score
+# -------------------------------------------------
+# 🏆 Summary & visualization
+# -------------------------------------------------
 top_measure = contrib_df.iloc[0]
-total_index = contrib_df["Impact_Index"].sum()
+total_index = contrib_df["Impact_Index_Scaled"].sum()
 
 st.markdown("---")
 st.markdown(
     f"🏆 **Top-performing measure:** `{top_measure['Measure']}` "
-    f"with Impact Index = **{top_measure['Impact_Index']:.1f}**"
+    f"with score **{top_measure['Impact_Index_Scaled']:.1f} / 10**"
 )
 st.markdown(
-    f"📊 **Overall weighted index (sum of all measures):** "
-    f"**{total_index:.1f}**"
+    f"📊 **Overall combined index (sum of all measures):** "
+    f"**{total_index:.1f} / {10 * len(contrib_df):.0f}**"
 )
 st.caption("Higher index = better combined performance after weighting.")
+
+# -------------------------------------------------
+# 📊 Horizontal bar chart for visualization
+# -------------------------------------------------
+palette = ['#5979A0', '#A8B5C5', '#EDE59D', '#7A9544', '#243C2C']
+fig7 = px.bar(
+    contrib_df,
+    x="Impact_Index_Scaled",
+    y="Measure",
+    orientation="h",
+    color="Measure",
+    color_discrete_sequence=palette,
+    title="Weighted Impact Index (1–10 scale)",
+    labels={"Impact_Index_Scaled": "Score (1–10)"},
+    hover_data={"Impact_Index_Scaled": ':.2f'}
+)
+fig7.update_traces(
+    text=contrib_df["Impact_Index_Scaled"].round(1),
+    textposition="outside",
+    hovertemplate="%{y}: %{x:.2f} / 10"
+)
+fig7.update_layout(
+    xaxis=dict(range=[0, 10]),
+    yaxis_title="",
+    xaxis_title="Impact Score (1–10)",
+    font=dict(color="#243C2C")
+)
+st.plotly_chart(fig7, use_container_width=True)
 
 
 
