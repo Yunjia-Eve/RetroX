@@ -216,26 +216,79 @@ with tabs[1]:
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
 
-    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+    # --- Operational Carbon Intensity Calculation ---
+    carbon_intensity = carbon_emission / GFA  # kgCO₂e/m²·yr
 
+    # --- Benchmark thresholds (BCA 2024 aligned) ---
+    benchmark_levels = {
+        "Green Mark Platinum": 55,
+        "Green Mark Gold": 70,
+        "Typical Office": 85
+    }
+
+    # --- Classification logic ---
+    if carbon_intensity <= 55:
+        carbon_comment = "Excellent – aligns with Green Mark Platinum benchmark."
+        carbon_level = "Platinum"
+    elif carbon_intensity <= 70:
+        carbon_comment = "Good – aligns with Green Mark Gold benchmark."
+        carbon_level = "Gold"
+    elif carbon_intensity <= 85:
+        carbon_comment = "Average – comparable to typical Singapore offices."
+        carbon_level = "Average"
+    else:
+        carbon_comment = "High – above national average operational carbon intensity."
+        carbon_level = "Below Benchmark"
+
+    # --- Carbon Benchmark Chart ---
+    benchmarks = pd.DataFrame({
+        "Category": ["Platinum ≤55", "Gold ≤70", "Typical ≤85", "Your Building"],
+        "Carbon_kgCO2e_m2": [55, 70, 85, carbon_intensity]
+    })
+
+    fig_carbon = px.bar(
+        benchmarks, x="Category", y="Carbon_kgCO2e_m2",
+        color="Category", color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
+        title="Operational Carbon Intensity Comparison (kg CO₂e/m²·yr)",
+        text_auto=".1f"
+    )
+    fig_carbon.update_layout(
+        yaxis_title="kg CO₂e/m²·yr",
+        font=dict(color="#243C2C"),
+        showlegend=False
+    )
+    st.plotly_chart(fig_carbon, use_container_width=True)
+
+    # -----------------------------------------------------
+    # 💬 Performance Summary + BCA 2024 Benchmark Reference
+    # -----------------------------------------------------
+    msg = (
+        f"Your building achieves **{energy_saving_pct:.1f}% energy saving** "
+        f"with a payback of **{payback_years:.1f} years**."
+        f"\n\nThe operational carbon intensity of your building is **{carbon_intensity:.1f} kg CO₂e/m²·yr**, "
+        f"classified as **{carbon_level}**. {carbon_comment}"
+    )
+
+    # --- Determine EUI quartile using BCA 2024 benchmark ---
     if EUI <= 109:
         quartile_text = "Top Quartile (best-performing buildings)"
-        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+        comment = "Excellent – among Singapore’s most energy-efficient offices."
     elif EUI <= 142:
         quartile_text = "2nd Quartile"
-        comment = "Good performance – your building performs better than the national median."
+        comment = "Good – performs better than the national median."
     elif EUI <= 184:
         quartile_text = "3rd Quartile"
-        comment = "Moderate performance – your building performs close to the national average."
+        comment = "Moderate – close to the national average."
     else:
         quartile_text = "Bottom Quartile"
-        comment = "Below average – your building consumes more energy than typical offices."
+        comment = "Below average – higher energy consumption than typical offices."
 
     msg += (
         f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
         f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
     )
 
+    # --- Green Mark achievement section ---
     if (EUI < 120) or (energy_saving_pct >= 35):
         msg += "\n\nGreen Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
@@ -259,36 +312,53 @@ with tabs[2]:
     col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
     col3.metric("Payback (years)", f"{payback_years:.1f}")
 
-    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+    # --- Benchmark comparison for payback period ---
+    payback_benchmarks = pd.DataFrame({
+        "Category": ["High-Efficiency Retrofit (≤ 5 yrs)", "Typical Office Retrofit (6–7 yrs)", "Slow Return (> 8 yrs)", "Your Building"],
+        "Payback (yrs)": [5, 6.5, 8, payback_years]
+    })
 
-    if EUI <= 109:
-        quartile_text = "Top Quartile (best-performing buildings)"
-        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
-    elif EUI <= 142:
-        quartile_text = "2nd Quartile"
-        comment = "Good performance – your building performs better than the national median."
-    elif EUI <= 184:
-        quartile_text = "3rd Quartile"
-        comment = "Moderate performance – your building performs close to the national average."
-    else:
-        quartile_text = "Bottom Quartile"
-        comment = "Below average – your building consumes more energy than typical offices."
+    fig_payback = px.bar(
+        payback_benchmarks, x="Category", y="Payback (yrs)",
+        color="Category", color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
+        title="Retrofit Payback Period Comparison (Years)",
+        text_auto=".1f"
+    )
+    fig_payback.update_layout(
+        yaxis_title="Years",
+        font=dict(color="#243C2C"),
+        showlegend=False
+    )
+    st.plotly_chart(fig_payback, use_container_width=True)
 
-    msg += (
-        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
-        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
+    # --- Performance summary ---
+    msg = (
+        f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+        f"\n\nCompared to typical office retrofits in Singapore (6–7 years average, BCA/IEA study), "
+        f"your payback performance is classified as: "
     )
 
+    if payback_years <= 5:
+        msg += "**Excellent – rapid return on investment.**"
+    elif payback_years <= 7:
+        msg += "**Good – in line with national benchmark.**"
+    elif payback_years <= 9:
+        msg += "**Moderate – slightly longer than typical retrofits.**"
+    else:
+        msg += "**Slow – beyond expected economic range for retrofits.**"
+
+    # --- Green Mark achievement (same as Energy tab) ---
     if (EUI < 120) or (energy_saving_pct >= 35):
         msg += "\n\nGreen Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
         msg += "\n\nGreen Mark Gold achieved!"
 
     st.markdown(
-        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>",
         unsafe_allow_html=True
     )
     st.info(msg)
+
 
 
 # -----------------------------------------------------
