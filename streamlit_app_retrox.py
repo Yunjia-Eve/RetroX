@@ -430,6 +430,21 @@ with tabs[3]:
 
     st.dataframe(contrib_df[["Measure", "Energy_Saving_kWh", "Cost_SGD", "Impact_Index"]],
                  use_container_width=True)
+# Highlight best and show total score
+top_measure = contrib_df.iloc[0]
+total_index = contrib_df["Impact_Index"].sum()
+
+st.markdown("---")
+st.markdown(
+    f"🏆 **Top-performing measure:** `{top_measure['Measure']}` "
+    f"with Impact Index = **{top_measure['Impact_Index']:.1f}**"
+)
+st.markdown(
+    f"📊 **Overall weighted index (sum of all measures):** "
+    f"**{total_index:.1f}**"
+)
+st.caption("Higher index = better combined performance after weighting.")
+
 
 
 # TRADE-OFF TAB
