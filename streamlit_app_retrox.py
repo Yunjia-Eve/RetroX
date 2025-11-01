@@ -215,11 +215,11 @@ with tabs[2]:
     st.metric("Payback (years)", f"{payback_years:,.1f}" if payback_years else "—")
 
 # =====================================================
-# 📊 Measure Impact Tab – Clean Final Version
+# 📊 Measure Impact Tab – Retrofit-only Clean Version
 # =====================================================
 with tabs[3]:
     st.subheader("📊 Measure Impact Analysis")
-    st.caption("Real SHAP-based interpretation using trained surrogate models.")
+    st.caption("Real SHAP-based interpretation using trained surrogate models (retrofit-only).")
 
     # -------------------------------------------------
     # 1️⃣ SHAP COMPUTATION (robust + XGB safe)
@@ -227,7 +227,6 @@ with tabs[3]:
     energy_model = models['Cooling_kWh']
     lighting_model = models['Lighting_kWh']
 
-    # Create small background sample
     background = pd.concat([X_input] * 10, ignore_index=True)
     background += np.random.normal(0, 0.05, background.shape)
 
@@ -271,84 +270,75 @@ with tabs[3]:
     # 2️⃣ COST IMPACT (proxy model)
     # -------------------------------------------------
     cost_proxy = np.array([
-        (14 - LPD) / 6 if LPD < 12 else 0,               # LPD retrofit only if <12
-        (hvac - 24) / 3 if hvac > 24 else 0,             # HVAC retrofit only if >24
-        shading if shading > 0 else 0,                   # Shading retrofit only if >0
-        1 if glazing in ['Double', 'Low-E'] else 0,      # Glazing upgrade
-        1 if insul in ['Med', 'High'] else 0,            # Insulation upgrade
-        1 if schedule == 'Adjusted' else 0,              # Schedule adjustment
-        1 if ctrl == 'Yes' else 0,                       # Linear control
-        1 if albedo == 'Cool' else 0,                    # High albedo
-        0, 0                                             # placeholders for matching cols
+        (14 - LPD) / 6 if LPD < 12 else 0,
+        (hvac - 24) / 3 if hvac > 24 else 0,
+        shading if shading > 0 else 0,
+        1 if glazing in ['Double', 'Low-E'] else 0,
+        1 if insul in ['Med', 'High'] else 0,
+        1 if schedule == 'Adjusted' else 0,
+        1 if ctrl == 'Yes' else 0,
+        1 if albedo == 'Cool' else 0,
+        0, 0
     ])[:len(feature_labels)]
-
     shap_cost_df = pd.DataFrame({'Feature': feature_labels, 'Impact': np.abs(cost_proxy)})
 
     # -------------------------------------------------
-    # 3️⃣ REMOVE NO-RETROFIT FEATURES (Impact = 0)
+    # 3️⃣ REMOVE BASE / NON-RETROFIT FEATURES
     # -------------------------------------------------
-    shap_energy_df = shap_energy_df[shap_energy_df['Impact'] > 0]
-    shap_cost_df = shap_cost_df[shap_cost_df['Impact'] > 0]
+    retrofit_mask = {
+        'Glazing_Single': glazing != 'Single',
+        'Glazing_Low-E': glazing == 'Low-E',
+        'Insulation_Low': insul != 'Low',
+        'Insulation_Medium': insul == 'Med',
+        'ScheduleAdj_Base': schedule != 'Base',
+        'LinearControl_Yes': ctrl == 'Yes',
+        'HighAlbedoWall_Cool': albedo == 'Cool'
+    }
+
+    def filter_retrofits(df):
+        keep = []
+        for f in df['Feature']:
+            # baseline-type flags get removed if not retrofit
+            if any(key in f for key in retrofit_mask.keys()):
+                if f in retrofit_mask and not retrofit_mask[f]:
+                    continue
+            # numeric conditions already zeroed out if no change
+            if df.loc[df['Feature'] == f, 'Impact'].iloc[0] > 0:
+                keep.append(f)
+        return df[df['Feature'].isin(keep)]
+
+    shap_energy_df = filter_retrofits(shap_energy_df)
+    shap_cost_df = filter_retrofits(shap_cost_df)
 
     # -------------------------------------------------
-    # 4️⃣ COLOR PALETTE + CHART SETTINGS
+    # 4️⃣ DOT PLOTS (vertical layout)
     # -------------------------------------------------
     palette = ['#5979A0', '#A8B5C5', '#EDE59D', '#7A9544', '#243C2C']
 
-    impact_choice = st.selectbox(
-        "Choose Visualization", ["SHAP Dot", "Waterfall", "Radar"]
+    st.markdown("### 🌿 Energy Saving Impact (SHAP)")
+    fig1 = px.scatter(
+        shap_energy_df, x='Impact', y='Feature',
+        color='Feature', color_discrete_sequence=palette,
+        title="Energy Saving – SHAP Dot Plot",
+        hover_data={'Impact': ':.2f'}
     )
+    fig1.update_traces(marker=dict(size=10, opacity=0.85),
+                       hovertemplate='%{y}: %{x:.2f}')
+    st.plotly_chart(fig1, use_container_width=True)
 
-    # -------- DOT PLOTS (Energy + Cost stacked vertically) --------
-    if impact_choice == "SHAP Dot":
-        st.markdown("### 🌿 Energy Saving Impact (SHAP)")
-        fig1 = px.scatter(
-            shap_energy_df, x='Impact', y='Feature',
-            color='Feature', color_discrete_sequence=palette,
-            title="SHAP Dot Plot – Energy Saving Impact",
-            hover_data={'Impact': ':.2f'}
-        )
-        fig1.update_traces(marker=dict(size=10, opacity=0.85),
-                           hovertemplate='%{y}: %{x:.2f}')
-        st.plotly_chart(fig1, use_container_width=True)
-
-        st.markdown("### 💰 Retrofit Cost Impact (Proxy)")
-        fig2 = px.scatter(
-            shap_cost_df, x='Impact', y='Feature',
-            color='Feature', color_discrete_sequence=palette,
-            title="SHAP Dot Plot – Retrofit Cost Impact",
-            hover_data={'Impact': ':.2f'}
-        )
-        fig2.update_traces(marker=dict(size=10, opacity=0.85),
-                           hovertemplate='%{y}: %{x:.2f}')
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # -------- OPTIONAL OTHER CHART TYPES --------
-    elif impact_choice == "Waterfall":
-        fig = go.Figure(go.Waterfall(
-            name="Impact", orientation="v",
-            measure=["relative"] * len(shap_energy_df),
-            x=shap_energy_df['Feature'], y=shap_energy_df['Impact'],
-            connector={"line": {"color": "#243C2C"}}
-        ))
-        fig.update_layout(title="Feature Contribution to Energy KPI",
-                          font=dict(color='#243C2C'))
-        fig.update_traces(hovertemplate='%{x}: %{y:.2f}')
-        st.plotly_chart(fig, use_container_width=True)
-
-    else:  # Radar
-        cats = list(shap_energy_df['Feature']) + [shap_energy_df['Feature'].iloc[0]]
-        vals = list(shap_energy_df['Impact']) + [shap_energy_df['Impact'].iloc[0]]
-        fig = go.Figure(data=go.Scatterpolar(
-            r=vals, theta=cats, fill='toself', marker=dict(color='#7A9544')
-        ))
-        fig.update_layout(title="Radar Chart of Energy Measure Impacts",
-                          polar=dict(radialaxis=dict(visible=True)),
-                          font=dict(color='#243C2C'))
-        st.plotly_chart(fig, use_container_width=True)
+    st.markdown("### 💰 Retrofit Cost Impact (Proxy)")
+    fig2 = px.scatter(
+        shap_cost_df, x='Impact', y='Feature',
+        color='Feature', color_discrete_sequence=palette,
+        title="Retrofit Cost – SHAP Dot Plot",
+        hover_data={'Impact': ':.2f'}
+    )
+    fig2.update_traces(marker=dict(size=10, opacity=0.85),
+                       hovertemplate='%{y}: %{x:.2f}')
+    st.plotly_chart(fig2, use_container_width=True)
 
     # -------------------------------------------------
-    # 5️⃣ IMPACT INDEX (Energy + Carbon + Cost)
+    # 5️⃣ IMPACT INDEX
     # -------------------------------------------------
     st.subheader("🎛️ Adjustable Impact Index")
     w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.4)
