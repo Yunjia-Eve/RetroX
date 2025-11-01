@@ -360,13 +360,13 @@ with tabs[3]:
 
     # ---------- WATERFALL ----------
     elif impact_choice == "Waterfall":
-        st.markdown("### 🌿 Energy Saving Contribution (Waterfall)")
+        st.markdown("### 🌿 Energy Saving Contribution")
         fig3 = go.Figure(go.Waterfall(
             name="Energy Impact", orientation="v",
             measure=["relative"] * len(contrib_df),
             x=contrib_df['Measure'], y=contrib_df['Energy_Saving_kWh'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#5979A0"}},
+            increasing={"marker": {"color": "#7A9544"}},
             totals={"marker": {"color": "#EDE59D"}}
         ))
         fig3.update_layout(title="Energy Saving Contribution (kWh)",
@@ -379,7 +379,7 @@ with tabs[3]:
             measure=["relative"] * len(contrib_df),
             x=contrib_df['Measure'], y=contrib_df['Cost_SGD'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#7A9544"}},
+            increasing={"marker": {"color": "#EDE59D"}},
             totals={"marker": {"color": "#EDE59D"}}
         ))
         fig4.update_layout(title="Retrofit Cost Contribution (SGD)",
