@@ -1,5 +1,5 @@
 # =====================================================
-# 🌿 RetroX Toolkit – Streamlit Dashboard (v4.3)
+# RetroX Toolkit – Streamlit Dashboard (v4.3)
 # =====================================================
 import streamlit as st
 import pandas as pd
@@ -26,7 +26,7 @@ BASELINE["EUI"] = 193.26
 # -----------------------------------------------------
 # 2️⃣ Load surrogate models
 # -----------------------------------------------------
-st.sidebar.header("🧠 Model Selection")
+st.sidebar.header("<i class="ph ph-robot"></i> Model Selection")
 model_options = ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"]
 prefix_map = {"Linear Regression (LR)": "LR", "Random Forest (RF)": "RF", "XGBoost (XGB)": "XGB"}
 default = {"Lighting_kWh": "XGBoost (XGB)", "Cooling_kWh": "Linear Regression (LR)", "Cooling_Load_kWh": "Linear Regression (LR)"}
@@ -163,9 +163,9 @@ with tabs[0]:
 
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " 🏆 Green Mark Platinum achieved!"
+        msg += " \n\n🏆 Green Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " 🥇 Green Mark Gold achieved!"
+        msg += " \n\n🥇 Green Mark Gold achieved!"
     st.info(msg)
 
 # ENVIRONMENT TAB -----------------------------------------------------
@@ -189,9 +189,9 @@ with tabs[2]:
     col3.metric("Payback (years)", f"{payback_years:.1f}")
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " 🏆 Green Mark Platinum achieved!"
+        msg += " \n\n🏆 Green Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " 🥇 Green Mark Gold achieved!"
+        msg += " \n\n🥇 Green Mark Gold achieved!"
     st.info(msg)
 
 # -----------------------------------------------------
