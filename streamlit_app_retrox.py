@@ -151,13 +151,13 @@ with tabs[0]:
     col2.metric("Lighting (kWh)", f"{lighting_pred:,.0f}")
     col3.metric("Cooling (kWh)", f"{cooling_pred:,.0f}")
     col4.metric("Room Elec (kWh)", f"{room_elec:,.0f}")
-    
+
     # --- Second row: Performance indicators ---
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
     col2.metric("Energy Saving (%)", f"{energy_saving_pct:.1f}%")
     col3.metric("Cooling Load Saving (%)", f"{cool_saving_pct:.1f}%")
-    col4.markdown("")  # empty cell for perfect alignment
+    col4.markdown("")  # empty for alignment
 
     # --- Energy Breakdown Bar Chart ---
     energy_df = pd.DataFrame({
@@ -166,55 +166,43 @@ with tabs[0]:
         'Retrofit (kWh)': [lighting_pred, cooling_pred, room_elec]
     })
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=energy_df['Category'], y=energy_df['Baseline (kWh)'],
-        name='Baseline', marker_color="#504e76"
-    ))
-    fig.add_trace(go.Bar(
-        x=energy_df['Category'], y=energy_df['Retrofit (kWh)'],
-        name='Retrofit', marker_color="#a3b565"
-    ))
-    fig.update_layout(barmode='group', title="Energy Breakdown vs Baseline", font=dict(color="#243C2C"))
+    fig.add_trace(go.Bar(x=energy_df['Category'], y=energy_df['Baseline (kWh)'],
+                         name='Baseline', marker_color="#504e76"))
+    fig.add_trace(go.Bar(x=energy_df['Category'], y=energy_df['Retrofit (kWh)'],
+                         name='Retrofit', marker_color="#a3b565"))
+    fig.update_layout(barmode='group', title="Energy Breakdown vs Baseline",
+                      font=dict(color="#243C2C"))
     st.plotly_chart(fig, use_container_width=True)
 
-    # -----------------------------------------------------
-# 💬 Performance Summary + BCA 2024 Benchmark Reference
-# -----------------------------------------------------
-msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+    # --- Summary ---
+    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
 
-if EUI <= 109:
-    quartile_text = "Top Quartile (best-performing buildings)"
-    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
-elif EUI <= 142:
-    quartile_text = "2nd Quartile"
-    comment = "Good performance – your building performs better than the national median."
-elif EUI <= 184:
-    quartile_text = "3rd Quartile"
-    comment = "Moderate performance – your building performs close to the national average."
-else:
-    quartile_text = "Bottom Quartile"
-    comment = "Below average – your building consumes more energy than typical offices."
+    if EUI <= 109:
+        quartile_text = "Top Quartile (best-performing buildings)"
+        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+    elif EUI <= 142:
+        quartile_text = "2nd Quartile"
+        comment = "Good performance – your building performs better than the national median."
+    elif EUI <= 184:
+        quartile_text = "3rd Quartile"
+        comment = "Moderate performance – your building performs close to the national average."
+    else:
+        quartile_text = "Bottom Quartile"
+        comment = "Below average – your building consumes more energy than typical offices."
 
-msg += (
-    f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
-    f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
-)
+    msg += (
+        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
+        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
+    )
 
-# --- Green Mark achievement section (styled) ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
+    # --- Green Mark section ---
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-# ✅ Only render once, using markdown for styling
-st.markdown(msg, unsafe_allow_html=True)
-
-# Keep reference note below message
-st.markdown(
-    "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
-    unsafe_allow_html=True
-)
-
+    st.markdown(msg, unsafe_allow_html=True)
+    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>", unsafe_allow_html=True)
 
 
 # -----------------------------------------------------
@@ -225,17 +213,10 @@ with tabs[1]:
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
 
-    # --- Operational Carbon Intensity Calculation ---
     carbon_intensity = carbon_emission / GFA  # kgCO₂e/m²·yr
 
-    # --- Benchmark thresholds (BCA 2024 aligned) ---
-    benchmark_levels = {
-        "Green Mark Platinum": 55,
-        "Green Mark Gold": 70,
-        "Typical Office": 85
-    }
+    benchmark_levels = {"Green Mark Platinum": 55, "Green Mark Gold": 70, "Typical Office": 85}
 
-    # --- Classification logic ---
     if carbon_intensity <= 55:
         carbon_comment = "Excellent – aligns with Green Mark Platinum benchmark."
         carbon_level = "Platinum"
@@ -257,42 +238,29 @@ with tabs[1]:
 
     fig_carbon = px.bar(
         benchmarks, x="Category", y="Carbon_kgCO2e_m2",
-        color="Category", color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
+        color="Category",
+        color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
         title="Operational Carbon Intensity Comparison (kg CO₂e/m²·yr)",
         text_auto=".1f"
     )
-    fig_carbon.update_layout(
-        yaxis_title="kg CO₂e/m²·yr",
-        font=dict(color="#243C2C"),
-        showlegend=False
-    )
+    fig_carbon.update_layout(yaxis_title="kg CO₂e/m²·yr", font=dict(color="#243C2C"), showlegend=False)
     st.plotly_chart(fig_carbon, use_container_width=True)
 
-    # -----------------------------------------------------
-    # 💬 Performance Summary + BCA 2024 Benchmark Reference
-    # -----------------------------------------------------
+    # --- Summary ---
     msg = (
         f"Your building achieves **{energy_saving_pct:.1f}% energy saving** "
         f"with a payback of **{payback_years:.1f} years**."
-        f"\n\nThe operational carbon intensity of your building is **{carbon_intensity:.1f} kg CO₂e/m²·yr**, "
+        f"\n\nThe operational carbon intensity is **{carbon_intensity:.1f} kg CO₂e/m²·yr**, "
         f"classified as **{carbon_level}**. {carbon_comment}"
     )
 
-   
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-# --- Green Mark achievement section (styled) ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
-
-# ✅ Only render once, using markdown for styling
-st.markdown(msg, unsafe_allow_html=True)
-
-# Keep reference note below message
-st.markdown(
-    "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
-    unsafe_allow_html=True
+    st.markdown(msg, unsafe_allow_html=True)
+    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>", unsafe_allow_html=True)
 
 
 # -----------------------------------------------------
@@ -308,26 +276,25 @@ with tabs[2]:
 
     # --- Benchmark comparison for payback period ---
     payback_benchmarks = pd.DataFrame({
-        "Category": ["High-Efficiency Retrofit (≤ 5 yrs)", "Typical Office Retrofit (6–7 yrs)", "Slow Return (> 8 yrs)", "Your Building"],
+        "Category": ["High-Efficiency Retrofit (≤ 5 yrs)", "Typical Office Retrofit (6–7 yrs)",
+                     "Slow Return (> 8 yrs)", "Your Building"],
         "Payback (yrs)": [5, 6.5, 8, payback_years]
     })
 
     fig_payback = px.bar(
         payback_benchmarks, x="Category", y="Payback (yrs)",
-        color="Category", color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
+        color="Category",
+        color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
         title="Retrofit Payback Period Comparison (Years)",
         text_auto=".1f"
     )
-    fig_payback.update_layout(
-        yaxis_title="Years",
-        font=dict(color="#243C2C"),
-        showlegend=False
-    )
+    fig_payback.update_layout(yaxis_title="Years", font=dict(color="#243C2C"), showlegend=False)
     st.plotly_chart(fig_payback, use_container_width=True)
 
-    # --- Performance summary ---
+    # --- Summary ---
     msg = (
-        f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+        f"Your building achieves **{energy_saving_pct:.1f}% energy saving** "
+        f"with a payback of **{payback_years:.1f} years**."
         f"\n\nCompared to typical office retrofits in Singapore (6–7 years average, BCA/IEA study), "
         f"your payback performance is classified as: "
     )
@@ -341,19 +308,13 @@ with tabs[2]:
     else:
         msg += "**Slow – beyond expected economic range for retrofits.**"
 
-   # --- Green Mark achievement section (styled) ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-# ✅ Only render once, using markdown for styling
-st.markdown(msg, unsafe_allow_html=True)
-
-# Keep reference note below message
-st.markdown(
-    "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>",
-    unsafe_allow_html=True
+    st.markdown(msg, unsafe_allow_html=True)
+    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>", unsafe_allow_html=True)
 
 
 
