@@ -26,10 +26,7 @@ BASELINE["EUI"] = 193.26
 # -----------------------------------------------------
 # 2️⃣ Load surrogate models
 # -----------------------------------------------------
-st.sidebar.markdown(
-    '<h3><i class="ph ph-robot"></i>  Model Selection</h3>',
-    unsafe_allow_html=True
-)
+st.sidebar.header("Model Selection")
 
 model_options = ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"]
 prefix_map = {"Linear Regression (LR)": "LR", "Random Forest (RF)": "RF", "XGBoost (XGB)": "XGB"}
@@ -48,7 +45,7 @@ models = {
 # -----------------------------------------------------
 # 3️⃣ User Inputs
 # -----------------------------------------------------
-st.sidebar.header("🏗️ Building Inputs")
+st.sidebar.header("Building Inputs")
 glazing  = st.sidebar.selectbox("Glazing Type", ["Single", "Double", "Low-E"])
 insul    = st.sidebar.selectbox("Insulation", ["Low", "Med", "High"])
 LPD      = st.sidebar.slider("Lighting Power Density (W/m²)", 8.0, 14.0, 10.0)
@@ -61,7 +58,7 @@ albedo   = st.sidebar.radio("High-Albedo Wall/Roof", ["Base", "Cool"])
 # -----------------------------------------------------
 # 4️⃣ Cost Settings
 # -----------------------------------------------------
-st.sidebar.header("💰 Tariff & Cost Settings")
+st.sidebar.header("Tariff & Cost Settings")
 def flexible_input(label, refs, default=1):
     mode = st.sidebar.radio(f"{label} Input", ["Reference", "Custom"], key=label)
     if mode == "Reference":
@@ -138,13 +135,13 @@ payback_years = CAPEX/annual_saving if annual_saving>0 else None
 # 8️⃣ Tabs
 # -----------------------------------------------------
 palette = ['#a3b565','#fcdd9d','#c4c3e3','#5979A0','#243C2C']
-st.title("🌿 RetroX Surrogate Toolkit v4.3")
+st.title("RetroX SG Toolkit")
 
-tabs = st.tabs(["⚡ Energy","🌍 Environment","💰 Economics","📊 Measure Impact","⚖️ Trade-off Explorer"])
+tabs = st.tabs(["Energy","Environment","Economics","Measure Impact","Trade-off Explorer"])
 
 # ENERGY TAB -----------------------------------------------------
 with tabs[0]:
-    st.subheader("⚡ Energy Breakdown vs Baseline")
+    st.subheader("Energy Breakdown vs Baseline")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Lighting (kWh)", f"{lighting_pred:,.0f}")
     col2.metric("Cooling (kWh)", f"{cooling_pred:,.0f}")
@@ -167,42 +164,42 @@ with tabs[0]:
 
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " \n\n🏆 Green Mark Platinum achieved!"
+        msg += " \n\n Green Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " \n\n🥇 Green Mark Gold achieved!"
+        msg += " \n\n Green Mark Gold achieved!"
     st.info(msg)
 
 # ENVIRONMENT TAB -----------------------------------------------------
 with tabs[1]:
-    st.subheader("🌍 Environmental KPIs")
+    st.subheader("Environmental KPIs")
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " \n\n🏆 Green Mark Platinum achieved!"
+        msg += " \n\n Green Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " \n\n🥇 Green Mark Gold achieved!"
+        msg += " \n\n Green Mark Gold achieved!"
     st.info(msg)
 
 # ECONOMICS TAB -----------------------------------------------------
 with tabs[2]:
-    st.subheader("💰 Economic KPIs")
+    st.subheader("Economic KPIs")
     col1,col2,col3 = st.columns(3)
     col1.metric("Retrofit Cost (SGD)", f"{CAPEX:,.0f}")
     col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
     col3.metric("Payback (years)", f"{payback_years:.1f}")
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
     if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += " \n\n🏆 Green Mark Platinum achieved!"
+        msg += " \n\n Green Mark Platinum achieved!"
     elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += " \n\n🥇 Green Mark Gold achieved!"
+        msg += " \n\n Green Mark Gold achieved!"
     st.info(msg)
 
 # -----------------------------------------------------
 # 📊 Measure Impact Tab
 # -----------------------------------------------------
 with tabs[3]:
-    st.subheader("📊 Measure Contribution Analysis")
+    st.subheader(" Measure Contribution Analysis")
     st.caption("Quantifies how much each retrofit measure contributes to total energy saving and retrofit cost.")
 
     # --- Baseline (no retrofit)
@@ -275,7 +272,7 @@ with tabs[3]:
         st.plotly_chart(fig6,use_container_width=True)
 
     # --- Weighted Impact Index (Table only) ---
-    st.subheader("🎛️ Weighted Impact Index")
+    st.subheader(" Weighted Impact Index")
     st.caption("Adjust weights to balance between energy saving and cost efficiency.")
     w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.6)
     w2 = st.slider("Weight: Retrofit Cost (inverse)", 0.0, 1.0, 0.4)
@@ -292,15 +289,15 @@ with tabs[3]:
     top_measure=contrib_df.iloc[0]
     total_index=contrib_df["Impact_Index_Scaled"].sum()
     st.markdown("---")
-    st.markdown(f"🏆 **Top-performing measure:** `{top_measure['Measure']}` with score **{top_measure['Impact_Index_Scaled']:.1f} / 10**")
-    st.markdown(f"📊 **Overall combined index (sum of all measures):** **{total_index:.1f} / {10*len(contrib_df):.0f}**")
+    st.markdown(f" **Top-performing measure:** `{top_measure['Measure']}` with score **{top_measure['Impact_Index_Scaled']:.1f} / 10**")
+    st.markdown(f" **Overall combined index (sum of all measures):** **{total_index:.1f} / {10*len(contrib_df):.0f}**")
     st.caption("Higher index = better combined performance after weighting.")
 
 # -----------------------------------------------------
 # ⚖️ Trade-off Explorer Tab
 # -----------------------------------------------------
 with tabs[4]:
-    st.subheader("⚖️ Trade-off Explorer")
+    st.subheader("Trade-off Explorer")
     st.caption("Explore trade-offs between energy savings, cost, and payback performance.")
     trade_type=st.selectbox("Choose Visualization",["Pareto Front","2D Contour","Animated"])
     if trade_type=="Pareto Front":
