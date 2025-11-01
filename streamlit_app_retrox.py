@@ -159,20 +159,46 @@ with tabs[0]:
     col3.metric("Cooling Load Saving (%)", f"{cool_saving_pct:.1f}%")
     col4.markdown("")  # empty for alignment
 
-    # --- Energy Breakdown Bar Chart ---
-    energy_df = pd.DataFrame({
-        'Category': ['Lighting', 'Cooling', 'Room'],
-        'Baseline (kWh)': [BASELINE['Lighting_kWh'], BASELINE['Cooling_kWh'], BASELINE['Room_kWh']],
-        'Retrofit (kWh)': [lighting_pred, cooling_pred, room_elec]
-    })
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=energy_df['Category'], y=energy_df['Baseline (kWh)'],
-                         name='Baseline', marker_color="#504e76"))
-    fig.add_trace(go.Bar(x=energy_df['Category'], y=energy_df['Retrofit (kWh)'],
-                         name='Retrofit', marker_color="#a3b565"))
-    fig.update_layout(barmode='group', title="Energy Breakdown vs Baseline",
-                      font=dict(color="#243C2C"))
-    st.plotly_chart(fig, use_container_width=True)
+    import plotly.graph_objects as go
+
+# Example data
+carbon_intensity = 68  # your calculated value
+max_range = 100        # upper limit of gauge
+
+fig = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=carbon_intensity,
+    title={'text': "Operational Carbon Intensity (kg CO₂e/m²·yr)", 'font': {'size': 18, 'color': '#243C2C'}},
+    number={'font': {'size': 24, 'color': '#243C2C'}},
+    gauge={
+        'axis': {'range': [0, max_range], 'tickwidth': 0, 'tickcolor': "white"},
+        'bar': {'color': "#243C2C", 'thickness': 0.3},
+        'bgcolor': "white",
+        'borderwidth': 0,
+        'steps': [
+            {'range': [0, 55], 'color': '#7A9544'},   # Platinum
+            {'range': [55, 70], 'color': '#fcdd9d'},  # Gold
+            {'range': [70, 85], 'color': '#c4c3e3'},  # Typical
+            {'range': [85, 100], 'color': '#504e76'}  # Poor
+        ],
+        'threshold': {
+            'line': {'color': "#243C2C", 'width': 4},
+            'thickness': 0.9,
+            'value': carbon_intensity
+        }
+    }
+))
+
+fig.update_layout(
+    margin={'t': 30, 'b': 0, 'l': 0, 'r': 0},
+    height=300,
+    paper_bgcolor="white",
+    font={'color': '#243C2C', 'family': 'Arial'},
+    gauge_shape='angular'
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
 
     # --- Summary ---
     msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
