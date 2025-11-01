@@ -354,8 +354,8 @@ with tabs[3]:
             measure=["relative"] * len(shap_energy_df),
             x=shap_energy_df['Feature'], y=shap_energy_df['Impact_kWh'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#EDE59D"}},
-            decreasing={"marker": {"color": "#7A9544"}},
+            increasing={"marker": {"color": "#7A9544"}},
+            decreasing={"marker": {"color": "#EDE59D"}},
             totals={"marker": {"color": "#5979A0"}}
         ))
         fig3.update_layout(title="Feature Contribution to Energy (kWh)",
@@ -370,9 +370,9 @@ with tabs[3]:
             measure=["relative"] * len(shap_cost_df),
             x=shap_cost_df['Feature'], y=shap_cost_df['Impact_SGD'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#5979A0"}},
+            increasing={"marker": {"color": "#EDE59D"}},
             decreasing={"marker": {"color": "#7A9544"}},
-            totals={"marker": {"color": "#EDE59D"}}
+            totals={"marker": {"color": "#5979A0"}}
         ))
         fig4.update_layout(title="Feature Contribution to Retrofit Cost (SGD)",
                            font=dict(color='#243C2C'),
