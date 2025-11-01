@@ -147,11 +147,11 @@ with tabs[0]:
 
     # --- First row: Energy use breakdown ---
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Lighting (kWh)", f"{lighting_pred:,.0f}")
-    col2.metric("Cooling (kWh)", f"{cooling_pred:,.0f}")
-    col3.metric("Room Elec (kWh)", f"{room_elec:,.0f}")
-    col4.metric("Total (kWh)", f"{total_energy:,.0f}")
-
+    col1.metric("Total (kWh)", f"{total_energy:,.0f}")
+    col2.metric("Lighting (kWh)", f"{lighting_pred:,.0f}")
+    col3.metric("Cooling (kWh)", f"{cooling_pred:,.0f}")
+    col4.metric("Room Elec (kWh)", f"{room_elec:,.0f}")
+    
     # --- Second row: Performance indicators ---
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
