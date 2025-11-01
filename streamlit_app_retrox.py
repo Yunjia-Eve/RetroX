@@ -178,42 +178,43 @@ with tabs[0]:
     st.plotly_chart(fig, use_container_width=True)
 
     # -----------------------------------------------------
-    # 💬 Performance Summary + BCA 2024 Benchmark Reference
-    # -----------------------------------------------------
-    msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
+# 💬 Performance Summary + BCA 2024 Benchmark Reference
+# -----------------------------------------------------
+msg = f"Your building achieves **{energy_saving_pct:.1f}% energy saving** with a payback of **{payback_years:.1f} years**."
 
-    if EUI <= 109:
-        quartile_text = "Top Quartile (best-performing buildings)"
-        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
-    elif EUI <= 142:
-        quartile_text = "2nd Quartile"
-        comment = "Good performance – your building performs better than the national median."
-    elif EUI <= 184:
-        quartile_text = "3rd Quartile"
-        comment = "Moderate performance – your building performs close to the national average."
-    else:
-        quartile_text = "Bottom Quartile"
-        comment = "Below average – your building consumes more energy than typical offices."
+if EUI <= 109:
+    quartile_text = "Top Quartile (best-performing buildings)"
+    comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+elif EUI <= 142:
+    quartile_text = "2nd Quartile"
+    comment = "Good performance – your building performs better than the national median."
+elif EUI <= 184:
+    quartile_text = "3rd Quartile"
+    comment = "Moderate performance – your building performs close to the national average."
+else:
+    quartile_text = "Bottom Quartile"
+    comment = "Below average – your building consumes more energy than typical offices."
 
-    msg += (
-        f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
-        f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
-    )
+msg += (
+    f"\n\nCompared to the **BCA 2024 Building Energy Benchmarking Report**, "
+    f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
+)
 
-    # --- Green Mark achievement section (styled) ---
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
+# --- Green Mark achievement section (styled) ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-    st.markdown(msg, unsafe_allow_html=True)
+# ✅ Only render once, using markdown for styling
+st.markdown(msg, unsafe_allow_html=True)
 
+# Keep reference note below message
+st.markdown(
+    "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+    unsafe_allow_html=True
+)
 
-    st.markdown(
-        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
-        unsafe_allow_html=True
-    )
-    st.info(msg)
 
 
 # -----------------------------------------------------
@@ -279,17 +280,19 @@ with tabs[1]:
 
    
 
-    # --- Green Mark achievement section ---
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\nGreen Mark Platinum achieved!"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\nGreen Mark Gold achieved!"
+# --- Green Mark achievement section (styled) ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-    st.markdown(
-        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
-        unsafe_allow_html=True
-    )
-    st.info(msg)
+# ✅ Only render once, using markdown for styling
+st.markdown(msg, unsafe_allow_html=True)
+
+# Keep reference note below message
+st.markdown(
+    "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+    unsafe_allow_html=True
 
 
 # -----------------------------------------------------
@@ -338,17 +341,19 @@ with tabs[2]:
     else:
         msg += "**Slow – beyond expected economic range for retrofits.**"
 
-    # --- Green Mark achievement (same as Energy tab) ---
-    if (EUI < 120) or (energy_saving_pct >= 35):
-        msg += "\n\nGreen Mark Platinum achieved!"
-    elif (EUI < 135) or (energy_saving_pct >= 30):
-        msg += "\n\nGreen Mark Gold achieved!"
+   # --- Green Mark achievement section (styled) ---
+if (EUI < 120) or (energy_saving_pct >= 35):
+    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+elif (EUI < 135) or (energy_saving_pct >= 30):
+    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-    st.markdown(
-        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>",
-        unsafe_allow_html=True
-    )
-    st.info(msg)
+# ✅ Only render once, using markdown for styling
+st.markdown(msg, unsafe_allow_html=True)
+
+# Keep reference note below message
+st.markdown(
+    "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>",
+    unsafe_allow_html=True
 
 
 
