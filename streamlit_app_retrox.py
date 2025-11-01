@@ -201,12 +201,12 @@ with tabs[0]:
     )
 
     # --- Green Mark achievement section (styled) ---
-if (EUI < 120) or (energy_saving_pct >= 35):
-    msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
-elif (EUI < 135) or (energy_saving_pct >= 30):
-    msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
+    if (EUI < 120) or (energy_saving_pct >= 35):
+        msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
+    elif (EUI < 135) or (energy_saving_pct >= 30):
+        msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-st.markdown(msg, unsafe_allow_html=True)
+    st.markdown(msg, unsafe_allow_html=True)
 
 
     st.markdown(
