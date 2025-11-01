@@ -158,11 +158,6 @@ with tabs[0]:
     col6.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
     col7.metric("Cooling Load Saving (%)", f"{cool_saving_pct:.1f}%")
 
-
-    st.metric("Energy Saving (%)", f"{energy_saving_pct:.1f}%")
-    st.metric("EUI (kWh/m²·yr)", f"{EUI:.2f}")
-    st.metric("Cooling Load Saving (%)", f"{cool_saving_pct:.1f}%")
-
     # --- Energy Breakdown Bar Chart ---
     energy_df = pd.DataFrame({
         'Category': ['Lighting', 'Cooling', 'Room'],
