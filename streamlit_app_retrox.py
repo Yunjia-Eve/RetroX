@@ -214,8 +214,9 @@ with tabs[0]:
 # -----------------------------------------------------
 with tabs[1]:
     st.subheader("Environmental KPIs")
-    st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
-    st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
+    col1, col2 = st.columns(2)
+    col1.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
+    col2.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
 
     carbon_intensity = carbon_emission / GFA  # kg CO₂e/m²·yr
 
