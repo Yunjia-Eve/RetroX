@@ -26,7 +26,7 @@ BASELINE["EUI"] = 193.26
 # -----------------------------------------------------
 # 2️⃣ Load surrogate models
 # -----------------------------------------------------
-st.sidebar.header("<i class="ph ph-robot"></i> Model Selection")
+st.sidebar.header("<i class="ph ph-robot"></i>, Model Selection")
 model_options = ["Linear Regression (LR)", "Random Forest (RF)", "XGBoost (XGB)"]
 prefix_map = {"Linear Regression (LR)": "LR", "Random Forest (RF)": "RF", "XGBoost (XGB)": "XGB"}
 default = {"Lighting_kWh": "XGBoost (XGB)", "Cooling_kWh": "Linear Regression (LR)", "Cooling_Load_kWh": "Linear Regression (LR)"}
