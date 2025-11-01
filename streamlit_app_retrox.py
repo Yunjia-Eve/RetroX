@@ -215,222 +215,221 @@ with tabs[2]:
     st.metric("Payback (years)", f"{payback_years:,.1f}" if payback_years else "—")
 
 # =====================================================
-# 📊 Measure Impact Tab – Final Professional Version
+# 📊 Measure Impact Tab – True Contribution Analysis
 # =====================================================
 with tabs[3]:
-    st.subheader("📊 Measure Impact Analysis")
-    st.caption("Real SHAP-based interpretation using trained surrogate models (retrofit-only).")
+    st.subheader("📊 Measure Contribution Analysis")
+    st.caption("Quantifies how much each retrofit measure contributes to total energy saving and retrofit cost.")
 
     # -------------------------------------------------
-    # 1️⃣ SHAP COMPUTATION (robust + XGB safe)
-# -------------------------------------------------
-    energy_model = models['Cooling_kWh']
-    lighting_model = models['Lighting_kWh']
+    # 1️⃣ Define baseline configuration (no retrofit)
+    # -------------------------------------------------
+    X_base = X_input.copy()
+    X_base.iloc[0] = 0
+    X_base['LPD_Wm2'] = 12
+    X_base['HVAC_Setpoint_C'] = 24
+    X_base['ShadingDepth_m'] = 0
+    X_base['Glazing_Single'] = 1
+    X_base['Insulation_Low'] = 1
+    X_base['ScheduleAdj_Base'] = 1
+    X_base['LinearControl_Yes'] = 0
+    X_base['HighAlbedoWall_Cool'] = 0
 
-    # background sample
-    background = pd.concat([X_input] * 10, ignore_index=True)
-    background += np.random.normal(0, 0.05, background.shape)
-
-    def make_shap_values(model, X_background, X_target):
-        """Compute SHAP safely for any model type."""
-        model_name = model.__class__.__name__
-        try:
-            if "XGB" in model_name or "XGBRegressor" in model_name:
-                f = lambda data: model.predict(data)
-                explainer = shap.Explainer(f, X_background, algorithm="auto")
-                shap_vals = explainer(X_target)
-            elif "Forest" in model_name or "DecisionTree" in model_name:
-                explainer = shap.TreeExplainer(model, data=X_background)
-                shap_vals = explainer.shap_values(X_target)
-            else:
-                explainer = shap.LinearExplainer(model, X_background)
-                shap_vals = explainer.shap_values(X_target)
-
-            if isinstance(shap_vals, list):
-                shap_vals = shap_vals[0]
-            if hasattr(shap_vals, "values"):
-                shap_vals = shap_vals.values
-            return np.abs(shap_vals[0])
-
-        except Exception as e:
-            st.warning(f"⚠️ SHAP failed for {model_name}: {e}")
-            if hasattr(model, "feature_importances_"):
-                vals = model.feature_importances_
-                return vals / vals.sum()
-            else:
-                return np.zeros(X_target.shape[1])
-
-    abs_shap_energy = make_shap_values(energy_model, background, X_input)
-    abs_shap_light = make_shap_values(lighting_model, background, X_input)
-    shap_combined = abs_shap_energy + abs_shap_light
-
-    feature_labels = X_input.columns
-    shap_energy_df = pd.DataFrame({'Feature': feature_labels, 'Impact_kWh': shap_combined})
+    # Predict baseline energy
+    E_base = (
+        models['Lighting_kWh'].predict(X_base)[0]
+        + models['Cooling_kWh'].predict(X_base)[0]
+        + BASELINE['Room_kWh']
+    )
 
     # -------------------------------------------------
-    # 2️⃣ COST IMPACT (proxy model)
+    # 2️⃣ Compute each measure’s ΔEnergy & ΔCost
     # -------------------------------------------------
-    cost_proxy = np.array([
-        (14 - LPD) / 6 * GFA * tariff if LPD < 12 else 0,          # lighting cost saving proxy (SGD)
-        (hvac - 24) / 3 * GFA * tariff if hvac > 24 else 0,        # HVAC saving proxy (SGD)
-        shading * WinA * tariff if shading > 0 else 0,              # shading proxy
-        1 * WinA * tariff if glazing in ['Double', 'Low-E'] else 0, # glazing proxy
-        1 * total_wall_roof * tariff if insul in ['Med', 'High'] else 0,
-        1 * GFA * tariff if schedule == 'Adjusted' else 0,
-        1 * GFA * tariff if ctrl == 'Yes' else 0,
-        1 * total_wall_roof * tariff if albedo == 'Cool' else 0,
-        0, 0
-    ])[:len(feature_labels)]
-    shap_cost_df = pd.DataFrame({'Feature': feature_labels, 'Impact_SGD': np.abs(cost_proxy)})
+    measures = [
+        'Glazing', 'Insulation', 'LPD', 'HVAC', 'Shading',
+        'Schedule', 'LinearControl', 'Albedo'
+    ]
+    results = []
+
+    for m in measures:
+        X_test = X_base.copy()
+
+        # Apply only one measure
+        if m == 'Glazing':
+            if glazing == 'Double':
+                X_test['Glazing_Single'] = 0
+                X_test['Glazing_Double'] = 1
+            elif glazing == 'Low-E':
+                X_test['Glazing_Single'] = 0
+                X_test['Glazing_Low-E'] = 1
+
+        elif m == 'Insulation':
+            if insul == 'Med':
+                X_test['Insulation_Low'] = 0
+                X_test['Insulation_Medium'] = 1
+            elif insul == 'High':
+                X_test['Insulation_Low'] = 0
+                X_test['Insulation_Medium'] = 0
+
+        elif m == 'LPD' and LPD < 12:
+            X_test['LPD_Wm2'] = LPD
+
+        elif m == 'HVAC' and hvac > 24:
+            X_test['HVAC_Setpoint_C'] = hvac
+
+        elif m == 'Shading' and shading > 0:
+            X_test['ShadingDepth_m'] = shading
+
+        elif m == 'Schedule' and schedule == 'Adjusted':
+            X_test['ScheduleAdj_Base'] = 0
+
+        elif m == 'LinearControl' and ctrl == 'Yes':
+            X_test['LinearControl_Yes'] = 1
+
+        elif m == 'Albedo' and albedo == 'Cool':
+            X_test['HighAlbedoWall_Cool'] = 1
+
+        # Skip if still baseline
+        if X_test.equals(X_base):
+            continue
+
+        # Predict new energy
+        E_new = (
+            models['Lighting_kWh'].predict(X_test)[0]
+            + models['Cooling_kWh'].predict(X_test)[0]
+            + BASELINE['Room_kWh']
+        )
+
+        ΔE = E_base - E_new  # kWh saved
+        ΔC = 0               # cost (CAPEX proxy)
+        if m == 'Glazing':
+            ΔC = glazing_cost_double * WinA if glazing == 'Double' else glazing_cost_lowe * WinA
+        elif m == 'Insulation':
+            ΔC = insul_cost_med * total_wall_roof if insul == 'Med' else insul_cost_high * total_wall_roof
+        elif m == 'LPD' and LPD < 12:
+            ΔC = led_cost * GFA
+        elif m == 'HVAC' and hvac > 24:
+            ΔC = hvac_cost
+        elif m == 'Shading' and shading > 0:
+            ΔC = shading_cost * WinA
+        elif m == 'Schedule' and schedule == 'Adjusted':
+            ΔC = schedule_cost
+        elif m == 'LinearControl' and ctrl == 'Yes':
+            ΔC = linearctrl_cost * GFA
+        elif m == 'Albedo' and albedo == 'Cool':
+            ΔC = albedo_cost * total_wall_roof
+
+        results.append({
+            'Measure': m,
+            'Energy_Saving_kWh': ΔE,
+            'Cost_SGD': ΔC
+        })
+
+    contrib_df = pd.DataFrame(results)
+    contrib_df = contrib_df.sort_values('Energy_Saving_kWh', ascending=False)
 
     # -------------------------------------------------
-    # 3️⃣ REMOVE BASE / NON-RETROFIT FEATURES
-    # -------------------------------------------------
-    def is_retrofit(feature: str) -> bool:
-        """Return True if this feature represents an active retrofit measure."""
-        if feature == "Glazing_Single": return False
-        if feature == "Glazing_Low-E": return glazing == "Low-E"
-        if feature == "Glazing_Double": return glazing == "Double"
-        if feature == "Insulation_Low": return False
-        if feature == "Insulation_Medium": return insul == "Med"
-        if feature == "Insulation_High": return insul == "High"
-        if feature == "LPD_Wm2": return LPD < 12
-        if feature == "HVAC_Setpoint_C": return hvac > 24
-        if feature == "ShadingDepth_m": return shading > 0
-        if feature == "ScheduleAdj_Base": return schedule == "Adjusted"
-        if feature == "LinearControl_Yes": return ctrl == "Yes"
-        if feature == "HighAlbedoWall_Cool": return albedo == "Cool"
-        return True
-
-    def filter_retrofits(df, colname):
-        keep = []
-        for f, val in zip(df["Feature"], df[colname]):
-            if val > 0 and is_retrofit(f):
-                keep.append(f)
-        return df[df["Feature"].isin(keep)]
-
-    shap_energy_df = filter_retrofits(shap_energy_df, "Impact_kWh")
-    shap_cost_df = filter_retrofits(shap_cost_df, "Impact_SGD")
-
-    # -------------------------------------------------
-    # 4️⃣ VISUALIZATIONS
+    # 3️⃣ Visualizations
     # -------------------------------------------------
     palette = ['#5979A0', '#A8B5C5', '#EDE59D', '#7A9544', '#243C2C']
-    impact_choice = st.selectbox("Choose Visualization", ["SHAP Dot", "Waterfall", "Radar"])
+    impact_choice = st.selectbox("Choose Visualization", ["Bar", "Waterfall", "Radar"])
 
-    # ---------- SHAP DOT ----------
-    if impact_choice == "SHAP Dot":
-        st.markdown("### 🌿 Energy Saving Impact")
-        fig1 = px.scatter(
-            shap_energy_df, x='Impact_kWh', y='Feature',
-            color='Feature', color_discrete_sequence=palette,
-            title="Energy Saving – SHAP Dot Plot",
-            labels={'Impact_kWh': 'Impact (kWh)'},
-            hover_data={'Impact_kWh': ':.2f'}
+    # ---------- BAR PLOTS ----------
+    if impact_choice == "Bar":
+        st.markdown("### 🌿 Energy Saving Contribution")
+        fig1 = px.bar(
+            contrib_df, x='Energy_Saving_kWh', y='Measure',
+            orientation='h', color='Measure', color_discrete_sequence=palette,
+            labels={'Energy_Saving_kWh': 'Energy Saving (kWh)'},
+            hover_data={'Energy_Saving_kWh': ':.2f'}
         )
-        fig1.update_traces(marker=dict(size=10, opacity=0.85),
-                           hovertemplate='%{y}: %{x:.2f} kWh')
-        fig1.add_hline(y=0, line_width=1, line_dash="dash", line_color="#243C2C")
+        fig1.update_traces(hovertemplate='%{y}: %{x:.0f} kWh')
+        fig1.update_layout(xaxis_title="Energy Saving (kWh)", yaxis_title="")
         st.plotly_chart(fig1, use_container_width=True)
 
-        st.markdown("### 💰 Retrofit Cost Impact")
-        fig2 = px.scatter(
-            shap_cost_df, x='Impact_SGD', y='Feature',
-            color='Feature', color_discrete_sequence=palette,
-            title="Retrofit Cost – SHAP Dot Plot",
-            labels={'Impact_SGD': 'Impact (SGD)'},
-            hover_data={'Impact_SGD': ':.2f'}
+        st.markdown("### 💰 Retrofit Cost Contribution")
+        fig2 = px.bar(
+            contrib_df, x='Cost_SGD', y='Measure',
+            orientation='h', color='Measure', color_discrete_sequence=palette,
+            labels={'Cost_SGD': 'Cost (SGD)'},
+            hover_data={'Cost_SGD': ':.2f'}
         )
-        fig2.update_traces(marker=dict(size=10, opacity=0.85),
-                           hovertemplate='%{y}: %{x:.2f} SGD')
-        fig2.add_hline(y=0, line_width=1, line_dash="dash", line_color="#243C2C")
+        fig2.update_traces(hovertemplate='%{y}: %{x:.0f} SGD')
+        fig2.update_layout(xaxis_title="Retrofit Cost (SGD)", yaxis_title="")
         st.plotly_chart(fig2, use_container_width=True)
 
     # ---------- WATERFALL ----------
     elif impact_choice == "Waterfall":
-        st.markdown("### 🌿 Energy Saving Impact")
+        st.markdown("### 🌿 Energy Saving Contribution (Waterfall)")
         fig3 = go.Figure(go.Waterfall(
             name="Energy Impact", orientation="v",
-            measure=["relative"] * len(shap_energy_df),
-            x=shap_energy_df['Feature'], y=shap_energy_df['Impact_kWh'],
+            measure=["relative"] * len(contrib_df),
+            x=contrib_df['Measure'], y=contrib_df['Energy_Saving_kWh'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#7A9544"}},
-            decreasing={"marker": {"color": "#EDE59D"}},
-            totals={"marker": {"color": "#5979A0"}}
+            increasing={"marker": {"color": "#5979A0"}},
+            totals={"marker": {"color": "#EDE59D"}}
         ))
-        fig3.update_layout(title="Feature Contribution to Energy (kWh)",
-                           font=dict(color='#243C2C'),
-                           yaxis_title="Impact (kWh)")
-        fig3.update_traces(hovertemplate='%{x}: %{y:.2f} kWh')
+        fig3.update_layout(title="Energy Saving Contribution (kWh)",
+                           yaxis_title="kWh", font=dict(color='#243C2C'))
         st.plotly_chart(fig3, use_container_width=True)
 
-        st.markdown("### 💰 Retrofit Cost Impact")
+        st.markdown("### 💰 Retrofit Cost Contribution (Waterfall)")
         fig4 = go.Figure(go.Waterfall(
             name="Cost Impact", orientation="v",
-            measure=["relative"] * len(shap_cost_df),
-            x=shap_cost_df['Feature'], y=shap_cost_df['Impact_SGD'],
+            measure=["relative"] * len(contrib_df),
+            x=contrib_df['Measure'], y=contrib_df['Cost_SGD'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#EDE59D"}},
-            decreasing={"marker": {"color": "#7A9544"}},
-            totals={"marker": {"color": "#5979A0"}}
+            increasing={"marker": {"color": "#7A9544"}},
+            totals={"marker": {"color": "#EDE59D"}}
         ))
-        fig4.update_layout(title="Feature Contribution to Retrofit Cost (SGD)",
-                           font=dict(color='#243C2C'),
-                           yaxis_title="Impact (SGD)")
-        fig4.update_traces(hovertemplate='%{x}: %{y:.2f} SGD')
+        fig4.update_layout(title="Retrofit Cost Contribution (SGD)",
+                           yaxis_title="SGD", font=dict(color='#243C2C'))
         st.plotly_chart(fig4, use_container_width=True)
 
     # ---------- RADAR ----------
     else:
-        st.markdown("### 🌿 Energy Saving Impact")
-        cats1 = list(shap_energy_df['Feature']) + [shap_energy_df['Feature'].iloc[0]]
-        vals1 = list(shap_energy_df['Impact_kWh']) + [shap_energy_df['Impact_kWh'].iloc[0]]
+        st.markdown("### 🌿 Energy Saving Contribution (Radar)")
+        cats1 = list(contrib_df['Measure']) + [contrib_df['Measure'].iloc[0]]
+        vals1 = list(contrib_df['Energy_Saving_kWh']) + [contrib_df['Energy_Saving_kWh'].iloc[0]]
         fig5 = go.Figure(data=go.Scatterpolar(
             r=vals1, theta=cats1, fill='toself', marker=dict(color='#7A9544')
         ))
-        fig5.update_layout(title="Energy Retrofit Measure Impacts (kWh)",
+        fig5.update_layout(title="Energy Saving Contribution (kWh)",
                            polar=dict(radialaxis=dict(visible=True)),
                            font=dict(color='#243C2C'))
         st.plotly_chart(fig5, use_container_width=True)
 
-        st.markdown("### 💰 Retrofit Cost Impact")
-        cats2 = list(shap_cost_df['Feature']) + [shap_cost_df['Feature'].iloc[0]]
-        vals2 = list(shap_cost_df['Impact_SGD']) + [shap_cost_df['Impact_SGD'].iloc[0]]
+        st.markdown("### 💰 Retrofit Cost Contribution (Radar)")
+        cats2 = list(contrib_df['Measure']) + [contrib_df['Measure'].iloc[0]]
+        vals2 = list(contrib_df['Cost_SGD']) + [contrib_df['Cost_SGD'].iloc[0]]
         fig6 = go.Figure(data=go.Scatterpolar(
             r=vals2, theta=cats2, fill='toself', marker=dict(color='#5979A0')
         ))
-        fig6.update_layout(title="Retrofit Cost Measure Impacts (SGD)",
+        fig6.update_layout(title="Retrofit Cost Contribution (SGD)",
                            polar=dict(radialaxis=dict(visible=True)),
                            font=dict(color='#243C2C'))
         st.plotly_chart(fig6, use_container_width=True)
 
     # -------------------------------------------------
-    # 5️⃣ IMPACT INDEX
+    # 4️⃣ Impact Index (for weighted ranking)
     # -------------------------------------------------
-    st.subheader("🎛️ Adjustable Impact Index")
-    w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.4)
-    w2 = st.slider("Weight: Payback (inverse)", 0.0, 1.0, 0.25)
-    w3 = st.slider("Weight: CAPEX (inverse)", 0.0, 1.0, 0.2)
-    w4 = st.slider("Weight: Carbon Emission (inverse)", 0.0, 1.0, 0.15)
+    st.subheader("🎛️ Weighted Impact Index")
+    w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.6)
+    w2 = st.slider("Weight: Retrofit Cost (inverse)", 0.0, 1.0, 0.4)
 
-    impact_index = (
-        w1 * energy_saving_pct
-        - w2 * (payback_years or 0)
-        - w3 * (CAPEX / 10000)
-        - w4 * (carbon_emission / 1000)
-    )
+    contrib_df["Impact_Index"] = w1 * contrib_df["Energy_Saving_kWh"] - w2 * (contrib_df["Cost_SGD"] / 1000)
+    contrib_df = contrib_df.sort_values("Impact_Index", ascending=False)
 
     st.markdown("<p style='font-size:15px;'><b>Impact Index Formula:</b></p>", unsafe_allow_html=True)
     st.latex(r"""
     \small
-    \text{Impact Index} =
-    (w_1 \times \text{Energy Saving \%}) -
-    (w_2 \times \text{Payback (years)}) -
-    (w_3 \times \frac{\text{CAPEX}}{10,000}) -
-    (w_4 \times \frac{\text{Carbon Emission}}{1,000})
+    \text{Impact Index}_i =
+    (w_1 \times \text{Energy Saving (kWh)}) -
+    (w_2 \times \frac{\text{Cost (SGD)}}{1{,}000})
     """)
 
-    st.success(f"Impact Index Score: **{impact_index:.2f}**")
+    st.dataframe(contrib_df[["Measure", "Energy_Saving_kWh", "Cost_SGD", "Impact_Index"]],
+                 use_container_width=True)
 
 
 # TRADE-OFF TAB
