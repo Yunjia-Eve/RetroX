@@ -195,22 +195,21 @@ with tabs[0]:
         f"your building’s EUI ({EUI:.1f} kWh/m²·yr) falls in the **{quartile_text}**, indicating: {comment}"
     )
 
-    # --- Green Mark section ---
     if (EUI < 120) or (energy_saving_pct >= 35):
         msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
     elif (EUI < 135) or (energy_saving_pct >= 30):
         msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
     st.markdown(
-    f"""
-    <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
-        {msg}
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>", unsafe_allow_html=True)
+        f"""
+        <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
+            {msg}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+                unsafe_allow_html=True)
 
 
 # -----------------------------------------------------
@@ -221,12 +220,7 @@ with tabs[1]:
     st.metric("Carbon Emission (kg CO₂e)", f"{carbon_emission:,.1f}")
     st.metric("Carbon Factor (kgCO₂/kWh)", f"{carbon_factor:.2f}")
 
-    # --- Operational Carbon Intensity ---
-    carbon_intensity = carbon_emission / GFA  # kgCO₂e/m²·yr
-
-    # --- Benchmark levels (BCA 2024) ---
-    benchmark_levels = {"Platinum": 55, "Gold": 70, "Typical": 85}
-
+    carbon_intensity = carbon_emission / GFA  # kg CO₂e/m²·yr
     if carbon_intensity <= 55:
         carbon_comment = "Excellent – aligns with Green Mark Platinum benchmark."
         carbon_level = "Platinum"
@@ -244,43 +238,39 @@ with tabs[1]:
     fig_carbon = go.Figure(go.Indicator(
         mode="gauge+number",
         value=carbon_intensity,
-        title={'text': "Operational Carbon Intensity (kg CO₂e/m²·yr)", 'font': {'size': 18, 'color': '#243C2C'}},
-        number={'font': {'size': 24, 'color': '#243C2C'}},
+        title={'text': "Operational Carbon Intensity (kg CO₂e/m²·yr)",
+               'font': {'size': 16, 'color': '#243C2C'}},
+        number={'font': {'size': 20, 'color': '#243C2C'}},
         gauge={
+            'shape': 'angular',
             'axis': {'range': [0, 100], 'tickwidth': 0, 'tickcolor': "white"},
             'bar': {'color': "#243C2C", 'thickness': 0.3},
             'bgcolor': "white",
             'borderwidth': 0,
             'steps': [
-                {'range': [0, 55], 'color': '#7A9544'},   # Platinum
-                {'range': [55, 70], 'color': '#fcdd9d'},  # Gold
-                {'range': [70, 85], 'color': '#c4c3e3'},  # Typical
-                {'range': [85, 100], 'color': '#504e76'}  # Poor
+                {'range': [0, 55], 'color': '#7A9544'},
+                {'range': [55, 70], 'color': '#fcdd9d'},
+                {'range': [70, 85], 'color': '#c4c3e3'},
+                {'range': [85, 100], 'color': '#504e76'}
             ],
-            'threshold': {
-                'line': {'color': "#243C2C", 'width': 4},
-                'thickness': 0.9,
-                'value': carbon_intensity
-            }
+            'threshold': {'line': {'color': "#243C2C", 'width': 4},
+                          'thickness': 0.9, 'value': carbon_intensity}
         }
     ))
     fig_carbon.update_layout(
-        margin={'t': 30, 'b': 0, 'l': 0, 'r': 0},
-        height=300,
+        margin=dict(t=10, b=0, l=10, r=10),
+        height=220,
         paper_bgcolor="white",
-        font={'color': '#243C2C', 'family': 'Arial'}
+        font=dict(color="#243C2C", family="Arial"),
     )
     st.plotly_chart(fig_carbon, use_container_width=True)
 
-    # --- Summary ---
     msg = (
         f"Your building achieves **{energy_saving_pct:.1f}% energy saving** "
         f"with a payback of **{payback_years:.1f} years**."
         f"\n\nThe operational carbon intensity is **{carbon_intensity:.1f} kg CO₂e/m²·yr**, "
         f"classified as **{carbon_level}**. {carbon_comment}"
     )
-
-    # --- Green Mark achievement section (styled) ---
     if (EUI < 120) or (energy_saving_pct >= 35):
         msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
     elif (EUI < 135) or (energy_saving_pct >= 30):
@@ -294,11 +284,8 @@ with tabs[1]:
         """,
         unsafe_allow_html=True
     )
-
-    st.markdown(
-        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>",
+                unsafe_allow_html=True)
 
 
 # -----------------------------------------------------
@@ -306,7 +293,6 @@ with tabs[1]:
 # -----------------------------------------------------
 with tabs[2]:
     st.subheader("Economic KPIs")
-
     col1, col2, col3 = st.columns(3)
     col1.metric("Retrofit Cost (SGD)", f"{CAPEX:,.0f}")
     col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
@@ -316,42 +302,39 @@ with tabs[2]:
     fig_payback = go.Figure(go.Indicator(
         mode="gauge+number",
         value=payback_years,
-        title={'text': "Retrofit Payback Period (Years)", 'font': {'size': 18, 'color': '#243C2C'}},
-        number={'font': {'size': 24, 'color': '#243C2C'}},
+        title={'text': "Retrofit Payback Period (Years)",
+               'font': {'size': 16, 'color': '#243C2C'}},
+        number={'font': {'size': 20, 'color': '#243C2C'}},
         gauge={
+            'shape': 'angular',
             'axis': {'range': [0, 12], 'tickwidth': 0, 'tickcolor': "white"},
             'bar': {'color': "#243C2C", 'thickness': 0.3},
             'bgcolor': "white",
             'borderwidth': 0,
             'steps': [
-                {'range': [0, 5], 'color': '#7A9544'},    # Excellent
-                {'range': [5, 7], 'color': '#fcdd9d'},   # Good
-                {'range': [7, 9], 'color': '#c4c3e3'},   # Moderate
-                {'range': [9, 12], 'color': '#504e76'}   # Slow
+                {'range': [0, 5], 'color': '#7A9544'},
+                {'range': [5, 7], 'color': '#fcdd9d'},
+                {'range': [7, 9], 'color': '#c4c3e3'},
+                {'range': [9, 12], 'color': '#504e76'}
             ],
-            'threshold': {
-                'line': {'color': "#243C2C", 'width': 4},
-                'thickness': 0.9,
-                'value': payback_years
-            }
+            'threshold': {'line': {'color': "#243C2C", 'width': 4},
+                          'thickness': 0.9, 'value': payback_years}
         }
     ))
     fig_payback.update_layout(
-        margin={'t': 30, 'b': 0, 'l': 0, 'r': 0},
-        height=300,
+        margin=dict(t=10, b=0, l=10, r=10),
+        height=220,
         paper_bgcolor="white",
-        font={'color': '#243C2C', 'family': 'Arial'}
+        font=dict(color="#243C2C", family="Arial"),
     )
     st.plotly_chart(fig_payback, use_container_width=True)
 
-    # --- Summary ---
     msg = (
         f"Your building achieves **{energy_saving_pct:.1f}% energy saving** "
         f"with a payback of **{payback_years:.1f} years**."
         f"\n\nCompared to typical office retrofits in Singapore (6–7 years average, BCA/IEA study), "
         f"your payback performance is classified as: "
     )
-
     if payback_years <= 5:
         msg += "**Excellent – rapid return on investment.**"
     elif payback_years <= 7:
@@ -361,7 +344,6 @@ with tabs[2]:
     else:
         msg += "**Slow – beyond expected economic range for retrofits.**"
 
-    # --- Green Mark achievement section (styled) ---
     if (EUI < 120) or (energy_saving_pct >= 35):
         msg += "\n\n<span style='color:#4C9A2A; font-weight:bold;'>Green Mark Platinum achieved!</span>"
     elif (EUI < 135) or (energy_saving_pct >= 30):
@@ -375,13 +357,8 @@ with tabs[2]:
         """,
         unsafe_allow_html=True
     )
-
-    st.markdown(
-        "<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>",
-        unsafe_allow_html=True
-    )
-
-
+    st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>",
+                unsafe_allow_html=True)
 
 
 # -----------------------------------------------------
