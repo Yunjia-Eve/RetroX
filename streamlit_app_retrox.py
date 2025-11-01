@@ -233,14 +233,14 @@ with tabs[1]:
         carbon_comment = "High – above national average operational carbon intensity."
         carbon_level = "Below Benchmark"
 
-    # --- Refined Gauge Chart for Carbon Intensity ---
+    # --- Larger Gauge Chart for Carbon Intensity ---
     fig_carbon = go.Figure(go.Indicator(
         mode="gauge+number",
         value=carbon_intensity,
-        domain={'x': [0, 1], 'y': [0, 0.85]},
+        domain={'x': [0, 1], 'y': [0, 1]},
         title={'text': "Operational Carbon Intensity (kg CO₂e/m²·yr)",
-               'font': {'size': 15, 'color': '#243C2C'}},
-        number={'font': {'size': 20, 'color': '#243C2C'}},
+               'font': {'size': 17, 'color': '#243C2C'}},
+        number={'font': {'size': 28, 'color': '#243C2C', 'family': 'Arial', 'weight': 'bold'}},
         gauge={
             'shape': 'angular',
             'axis': {'range': [0, 100], 'tickwidth': 0, 'tickcolor': "white"},
@@ -258,8 +258,8 @@ with tabs[1]:
         }
     ))
     fig_carbon.update_layout(
-        margin=dict(t=50, b=10, l=10, r=10),
-        height=240,
+        margin=dict(t=70, b=30, l=10, r=10),
+        height=360,
         paper_bgcolor="white",
         font=dict(color="#243C2C", family="Arial"),
     )
@@ -295,14 +295,14 @@ with tabs[2]:
     col2.metric("Annual Saving (SGD)", f"{annual_saving:,.0f}")
     col3.metric("Payback (years)", f"{payback_years:.1f}")
 
-    # --- Refined Gauge Chart for Payback Years ---
+    # --- Larger Gauge Chart for Payback Years ---
     fig_payback = go.Figure(go.Indicator(
         mode="gauge+number",
         value=payback_years,
-        domain={'x': [0, 1], 'y': [0, 0.85]},
+        domain={'x': [0, 1], 'y': [0, 1]},
         title={'text': "Retrofit Payback Period (Years)",
-               'font': {'size': 15, 'color': '#243C2C'}},
-        number={'font': {'size': 20, 'color': '#243C2C'}},
+               'font': {'size': 17, 'color': '#243C2C'}},
+        number={'font': {'size': 28, 'color': '#243C2C', 'family': 'Arial', 'weight': 'bold'}},
         gauge={
             'shape': 'angular',
             'axis': {'range': [0, 12], 'tickwidth': 0, 'tickcolor': "white"},
@@ -320,8 +320,8 @@ with tabs[2]:
         }
     ))
     fig_payback.update_layout(
-        margin=dict(t=50, b=10, l=10, r=10),
-        height=240,
+        margin=dict(t=70, b=30, l=10, r=10),
+        height=360,
         paper_bgcolor="white",
         font=dict(color="#243C2C", family="Arial"),
     )
