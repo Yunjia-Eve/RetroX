@@ -218,43 +218,41 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("📊 Measure Impact Analysis")
 
-    # --------------------------
-    # 1️⃣ SHAP computation setup
-    # --------------------------
-    st.caption("Real SHAP-based measure interpretation using your trained surrogate models.")
+   # --------------------------
+# 1️⃣ SHAP computation setup (fixed version)
+# --------------------------
+st.caption("Real SHAP-based measure interpretation using your trained surrogate models.")
 
-    # Prepare models for energy and cost interpretation
-    energy_model = models['Cooling_kWh']   # use cooling as main energy surrogate
-    lighting_model = models['Lighting_kWh']
+# Pick main models for energy and lighting
+energy_model = models['Cooling_kWh']
+lighting_model = models['Lighting_kWh']
 
-    # Combine both to get integrated energy-related SHAP importance
-    explainer_energy = shap.Explainer(energy_model, X_input)
-    shap_values_energy = explainer_energy(X_input)
+# Create a small background (replicate user input + small noise)
+background = pd.concat([X_input] * 10, ignore_index=True)
+for c in background.columns:
+    background[c] = background[c] + np.random.normal(0, 0.1, size=background.shape[0])
 
-    explainer_light = shap.Explainer(lighting_model, X_input)
-    shap_values_light = explainer_light(X_input)
+# Helper to create explainer safely depending on model type
+def safe_shap_explainer(model, background):
+    model_name = model.__class__.__name__
+    if "XGB" in model_name or "XGBRegressor" in model_name:
+        return shap.TreeExplainer(model, data=background, feature_perturbation="interventional")
+    elif "Forest" in model_name or "DecisionTree" in model_name:
+        return shap.TreeExplainer(model, data=background)
+    else:  # LinearRegression or similar
+        return shap.LinearExplainer(model, background)
 
-    # Combine both absolute impacts (approximation)
-    abs_shap_energy = np.abs(shap_values_energy.values[0]) + np.abs(shap_values_light.values[0])
-    feature_labels = X_input.columns
-    shap_energy_df = pd.DataFrame({'Feature': feature_labels, 'Impact': abs_shap_energy})
+# Compute SHAP for cooling + lighting
+explainer_energy = safe_shap_explainer(energy_model, background)
+shap_values_energy = explainer_energy.shap_values(X_input)
 
-    # Retrofit cost SHAP (synthetic simple proxy)
-    cost_features = ['LPD_Wm2', 'HVAC_Setpoint_C', 'ShadingDepth_m',
-                     'Glazing_Low-E', 'Insulation_Medium', 'ScheduleAdj_Base',
-                     'LinearControl_Yes', 'HighAlbedoWall_Cool']
-    shap_cost_values = np.array([
-        (14 - LPD) / 6,             # LPD saving effect
-        (hvac - 24) / 3,            # HVAC shift
-        shading,                    # shading depth cost
-        1 if glazing != 'Single' else 0,
-        1 if insul != 'Low' else 0,
-        1 if schedule != 'Base' else 0,
-        1 if ctrl == 'Yes' else 0,
-        1 if albedo == 'Cool' else 0
-    ]) * 0.5  # normalize
+explainer_light = safe_shap_explainer(lighting_model, background)
+shap_values_light = explainer_light.shap_values(X_input)
 
-    shap_cost_df = pd.DataFrame({'Feature': cost_features[:len(shap_cost_values)], 'Impact': np.abs(shap_cost_values)})
+# Combine both absolute impacts
+abs_shap_energy = np.abs(shap_values_energy[0]) + np.abs(shap_values_light[0])
+feature_labels = X_input.columns
+shap_energy_df = pd.DataFrame({'Feature': feature_labels, 'Impact': abs_shap_energy})
 
     # --------------------------
     # 2️⃣ Visualization selection
