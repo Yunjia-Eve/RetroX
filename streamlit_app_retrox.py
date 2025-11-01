@@ -320,7 +320,7 @@ with tabs[3]:
 
     # ---------- SHAP DOT ----------
     if impact_choice == "SHAP Dot":
-        st.markdown("### 🌿 Energy Saving Impact (SHAP)")
+        st.markdown("### 🌿 Energy Saving Impact")
         fig1 = px.scatter(
             shap_energy_df, x='Impact_kWh', y='Feature',
             color='Feature', color_discrete_sequence=palette,
@@ -333,7 +333,7 @@ with tabs[3]:
         fig1.add_hline(y=0, line_width=1, line_dash="dash", line_color="#243C2C")
         st.plotly_chart(fig1, use_container_width=True)
 
-        st.markdown("### 💰 Retrofit Cost Impact (Proxy)")
+        st.markdown("### 💰 Retrofit Cost Impact")
         fig2 = px.scatter(
             shap_cost_df, x='Impact_SGD', y='Feature',
             color='Feature', color_discrete_sequence=palette,
@@ -348,15 +348,15 @@ with tabs[3]:
 
     # ---------- WATERFALL ----------
     elif impact_choice == "Waterfall":
-        st.markdown("### 🌿 Energy Saving Impact (Waterfall)")
+        st.markdown("### 🌿 Energy Saving Impact")
         fig3 = go.Figure(go.Waterfall(
             name="Energy Impact", orientation="v",
             measure=["relative"] * len(shap_energy_df),
             x=shap_energy_df['Feature'], y=shap_energy_df['Impact_kWh'],
             connector={"line": {"color": "#243C2C"}},
-            increasing={"marker": {"color": "#5979A0"}},
+            increasing={"marker": {"color": "#EDE59D"}},
             decreasing={"marker": {"color": "#7A9544"}},
-            totals={"marker": {"color": "#EDE59D"}}
+            totals={"marker": {"color": "#5979A0"}}
         ))
         fig3.update_layout(title="Feature Contribution to Energy (kWh)",
                            font=dict(color='#243C2C'),
@@ -364,7 +364,7 @@ with tabs[3]:
         fig3.update_traces(hovertemplate='%{x}: %{y:.2f} kWh')
         st.plotly_chart(fig3, use_container_width=True)
 
-        st.markdown("### 💰 Retrofit Cost Impact (Waterfall)")
+        st.markdown("### 💰 Retrofit Cost Impact")
         fig4 = go.Figure(go.Waterfall(
             name="Cost Impact", orientation="v",
             measure=["relative"] * len(shap_cost_df),
@@ -382,7 +382,7 @@ with tabs[3]:
 
     # ---------- RADAR ----------
     else:
-        st.markdown("### 🌿 Energy Saving Impact (Radar)")
+        st.markdown("### 🌿 Energy Saving Impact")
         cats1 = list(shap_energy_df['Feature']) + [shap_energy_df['Feature'].iloc[0]]
         vals1 = list(shap_energy_df['Impact_kWh']) + [shap_energy_df['Impact_kWh'].iloc[0]]
         fig5 = go.Figure(data=go.Scatterpolar(
@@ -393,7 +393,7 @@ with tabs[3]:
                            font=dict(color='#243C2C'))
         st.plotly_chart(fig5, use_container_width=True)
 
-        st.markdown("### 💰 Retrofit Cost Impact (Radar)")
+        st.markdown("### 💰 Retrofit Cost Impact")
         cats2 = list(shap_cost_df['Feature']) + [shap_cost_df['Feature'].iloc[0]]
         vals2 = list(shap_cost_df['Impact_SGD']) + [shap_cost_df['Impact_SGD'].iloc[0]]
         fig6 = go.Figure(data=go.Scatterpolar(
