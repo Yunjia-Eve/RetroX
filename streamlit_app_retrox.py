@@ -180,16 +180,16 @@ with tabs[0]:
     # --- EUI Quartile Benchmark ---
     if EUI <= 109:
         quartile_text = "Top Quartile (best-performing buildings)"
-        comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
+        comment = "\n\nExcellent performance: your building is among Singapore’s most energy-efficient offices."
     elif EUI <= 142:
         quartile_text = "2nd Quartile"
-        comment = "\n\nGood performance – your building performs better than the national median."
+        comment = "\n\nGood performance: your building performs better than the national median."
     elif EUI <= 184:
         quartile_text = "3rd Quartile"
-        comment = "Moderate performance – your building performs close to the national average."
+        comment = "\n\nModerate performance: your building performs close to the national average."
     else:
         quartile_text = "Bottom Quartile"
-        comment = "Below average – your building consumes more energy than typical offices."
+        comment = "\n\nBelow average: your building consumes more energy than typical offices."
 
     msg += f"<br><br>Compared to the BCA 2024 Building Energy Benchmarking Report, your building’s EUI is {EUI:.1f} kWh/m²·yr, falling in the {quartile_text}. {comment}"
 
@@ -222,16 +222,16 @@ with tabs[1]:
 
     # --- Benchmark classification ---
     if carbon_intensity <= 55:
-        carbon_comment = "Excellent – aligns with Green Mark Platinum benchmark."
+        carbon_comment = "\n\nExcellent: aligns with Green Mark Platinum benchmark."
         carbon_level = "Platinum"
     elif carbon_intensity <= 70:
-        carbon_comment = "Good – aligns with Green Mark Gold benchmark."
+        carbon_comment = "\n\nGood: aligns with Green Mark Gold benchmark."
         carbon_level = "Gold"
     elif carbon_intensity <= 85:
-        carbon_comment = "Average – comparable to typical Singapore offices."
+        carbon_comment = "\n\nAverage: comparable to typical Singapore offices."
         carbon_level = "Average"
     else:
-        carbon_comment = "High – above national average operational carbon intensity."
+        carbon_comment = "\n\nHigh: above national average operational carbon intensity."
         carbon_level = "Below Benchmark"
 
     # --- Larger Gauge Chart for Carbon Intensity ---
@@ -332,11 +332,11 @@ with tabs[2]:
     msg = f"Your building achieves {energy_saving_pct:.1f}% energy saving with a payback of {payback_years:.1f} years."
 
     if payback_years <= 5:
-        payback_comment = "Excellent – rapid return on investment."
+        payback_comment = "\n\nExcellent: rapid return on investment."
     elif payback_years <= 7:
-        payback_comment = "Good – in line with national benchmark."
+        payback_comment = "\n\nGood: in line with national benchmark."
     elif payback_years <= 9:
-        payback_comment = "Moderate – slightly longer than typical retrofits."
+        payback_comment = "\n\nModerate: slightly longer than typical retrofits."
     else:
         payback_comment = "Slow – beyond expected economic range for retrofits."
 
