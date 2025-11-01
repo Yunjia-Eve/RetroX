@@ -183,7 +183,7 @@ with tabs[0]:
         comment = "Excellent performance – your building is among Singapore’s most energy-efficient offices."
     elif EUI <= 142:
         quartile_text = "2nd Quartile"
-        comment = "Good performance – your building performs better than the national median."
+        comment = "\n\nGood performance – your building performs better than the national median."
     elif EUI <= 184:
         quartile_text = "3rd Quartile"
         comment = "Moderate performance – your building performs close to the national average."
