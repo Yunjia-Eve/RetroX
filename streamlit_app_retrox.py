@@ -201,7 +201,15 @@ with tabs[0]:
     elif (EUI < 135) or (energy_saving_pct >= 30):
         msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-    st.markdown(msg, unsafe_allow_html=True)
+    st.markdown(
+    f"""
+    <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
+        {msg}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
     st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>", unsafe_allow_html=True)
 
 
@@ -259,7 +267,15 @@ with tabs[1]:
     elif (EUI < 135) or (energy_saving_pct >= 30):
         msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-    st.markdown(msg, unsafe_allow_html=True)
+    st.markdown(
+    f"""
+    <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
+        {msg}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
     st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA Benchmark 2024 Reference</p>", unsafe_allow_html=True)
 
 
@@ -313,7 +329,15 @@ with tabs[2]:
     elif (EUI < 135) or (energy_saving_pct >= 30):
         msg += "\n\n<span style='color:#C2A23A; font-weight:bold;'>Green Mark Gold achieved!</span>"
 
-    st.markdown(msg, unsafe_allow_html=True)
+    st.markdown(
+    f"""
+    <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
+        {msg}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
     st.markdown("<p style='color:grey; font-size:14px; font-weight:bold;'>BCA & IEA Retrofit Benchmark Reference</p>", unsafe_allow_html=True)
 
 
