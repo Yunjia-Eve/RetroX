@@ -218,42 +218,61 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("📊 Measure Impact Analysis")
 
-   # --------------------------
-# 1️⃣ SHAP computation setup (fixed version)
+# --------------------------
+# 1️⃣ SHAP computation setup (robust fix)
 # --------------------------
 st.caption("Real SHAP-based measure interpretation using your trained surrogate models.")
 
-# Pick main models for energy and lighting
+# Pick main models
 energy_model = models['Cooling_kWh']
 lighting_model = models['Lighting_kWh']
 
-# Create a small background (replicate user input + small noise)
-background = pd.concat([X_input] * 10, ignore_index=True)
-for c in background.columns:
-    background[c] = background[c] + np.random.normal(0, 0.1, size=background.shape[0])
+# Create small background data (10 synthetic samples)
+background = pd.DataFrame(np.tile(X_input.values, (10, 1)), columns=X_input.columns)
+background += np.random.normal(0, 0.1, background.shape)
 
-# Helper to create explainer safely depending on model type
-def safe_shap_explainer(model, background):
+# --- SHAP explainer function ---
+def make_shap_values(model, X_background, X_target):
+    """Return absolute SHAP values for one-row input."""
     model_name = model.__class__.__name__
-    if "XGB" in model_name or "XGBRegressor" in model_name:
-        return shap.TreeExplainer(model, data=background, feature_perturbation="interventional")
-    elif "Forest" in model_name or "DecisionTree" in model_name:
-        return shap.TreeExplainer(model, data=background)
-    else:  # LinearRegression or similar
-        return shap.LinearExplainer(model, background)
 
-# Compute SHAP for cooling + lighting
-explainer_energy = safe_shap_explainer(energy_model, background)
-shap_values_energy = explainer_energy.shap_values(X_input)
+    try:
+        if "XGB" in model_name or "XGBRegressor" in model_name:
+            explainer = shap.TreeExplainer(model, data=X_background, feature_perturbation="interventional")
+            shap_vals = explainer.shap_values(X_target)
+        elif "Forest" in model_name or "DecisionTree" in model_name:
+            explainer = shap.TreeExplainer(model, data=X_background)
+            shap_vals = explainer.shap_values(X_target)
+        else:
+            explainer = shap.LinearExplainer(model, X_background)
+            shap_vals = explainer.shap_values(X_target)
 
-explainer_light = safe_shap_explainer(lighting_model, background)
-shap_values_light = explainer_light.shap_values(X_input)
+        # handle possible nested outputs
+        if isinstance(shap_vals, list):
+            shap_vals = shap_vals[0]
+        return np.abs(shap_vals[0])
 
-# Combine both absolute impacts
-abs_shap_energy = np.abs(shap_values_energy[0]) + np.abs(shap_values_light[0])
+    except Exception as e:
+        st.warning(f"SHAP failed for {model_name}: {e}")
+        # fallback: return feature importances if available
+        if hasattr(model, "feature_importances_"):
+            vals = model.feature_importances_
+            return vals / vals.sum()
+        else:
+            return np.zeros(X_target.shape[1])
+
+# --- Compute SHAP values safely ---
+abs_shap_energy = make_shap_values(energy_model, background, X_input)
+abs_shap_light = make_shap_values(lighting_model, background, X_input)
+
+# Combine both energy-related impacts
 feature_labels = X_input.columns
-shap_energy_df = pd.DataFrame({'Feature': feature_labels, 'Impact': abs_shap_energy})
+shap_energy_df = pd.DataFrame({
+    'Feature': feature_labels,
+    'Impact': abs_shap_energy + abs_shap_light
+})
 
+    
     # --------------------------
     # 2️⃣ Visualization selection
     # --------------------------
