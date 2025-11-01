@@ -217,33 +217,135 @@ with tabs[2]:
 # MEASURE IMPACT TAB
 with tabs[3]:
     st.subheader("📊 Measure Impact Analysis")
-    impact_choice = st.selectbox("Choose Visualization", ["SHAP Bar", "Waterfall", "Radar"])
-    np.random.seed(42)
-    features = ['LPD', 'HVAC', 'Shading', 'Insulation', 'Glazing', 'Schedule', 'Albedo']
-    shap_values = np.abs(np.random.randn(len(features)))
-    shap_df = pd.DataFrame({'Feature':features, 'Impact':shap_values})
-    if impact_choice == "SHAP Bar":
-        fig = px.bar(shap_df, x='Impact', y='Feature', orientation='h', title="Feature Importance (SHAP)")
-        st.plotly_chart(fig, use_container_width=True)
-    elif impact_choice == "Waterfall":
-        fig = go.Figure(go.Waterfall(
-            name="Impact", orientation="v", measure=["relative"]*len(features),
-            x=features, y=shap_values, connector={"line":{"color":"rgb(63,63,63)"}}))
-        fig.update_layout(title="Feature Contribution to KPI")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        cats = features + [features[0]]
-        vals = list(shap_values) + [shap_values[0]]
-        fig = go.Figure(data=go.Scatterpolar(r=vals, theta=cats, fill='toself'))
-        fig.update_layout(title="Radar Chart of Measure Impacts", polar=dict(radialaxis=dict(visible=True)))
+
+    # --------------------------
+    # 1️⃣ SHAP computation setup
+    # --------------------------
+    st.caption("Real SHAP-based measure interpretation using your trained surrogate models.")
+
+    # Prepare models for energy and cost interpretation
+    energy_model = models['Cooling_kWh']   # use cooling as main energy surrogate
+    lighting_model = models['Lighting_kWh']
+
+    # Combine both to get integrated energy-related SHAP importance
+    explainer_energy = shap.Explainer(energy_model, X_input)
+    shap_values_energy = explainer_energy(X_input)
+
+    explainer_light = shap.Explainer(lighting_model, X_input)
+    shap_values_light = explainer_light(X_input)
+
+    # Combine both absolute impacts (approximation)
+    abs_shap_energy = np.abs(shap_values_energy.values[0]) + np.abs(shap_values_light.values[0])
+    feature_labels = X_input.columns
+    shap_energy_df = pd.DataFrame({'Feature': feature_labels, 'Impact': abs_shap_energy})
+
+    # Retrofit cost SHAP (synthetic simple proxy)
+    cost_features = ['LPD_Wm2', 'HVAC_Setpoint_C', 'ShadingDepth_m',
+                     'Glazing_Low-E', 'Insulation_Medium', 'ScheduleAdj_Base',
+                     'LinearControl_Yes', 'HighAlbedoWall_Cool']
+    shap_cost_values = np.array([
+        (14 - LPD) / 6,             # LPD saving effect
+        (hvac - 24) / 3,            # HVAC shift
+        shading,                    # shading depth cost
+        1 if glazing != 'Single' else 0,
+        1 if insul != 'Low' else 0,
+        1 if schedule != 'Base' else 0,
+        1 if ctrl == 'Yes' else 0,
+        1 if albedo == 'Cool' else 0
+    ]) * 0.5  # normalize
+
+    shap_cost_df = pd.DataFrame({'Feature': cost_features[:len(shap_cost_values)], 'Impact': np.abs(shap_cost_values)})
+
+    # --------------------------
+    # 2️⃣ Visualization selection
+    # --------------------------
+    impact_choice = st.selectbox(
+        "Choose Visualization",
+        ["SHAP Bar", "SHAP Dot", "Waterfall", "Radar"]
+    )
+
+    palette = ['#5979A0', '#A8B5C5', '#EDE59D', '#7A9544', '#243C2C']
+
+    def plot_shap(df, title):
+        fig = px.bar(
+            df.sort_values("Impact", ascending=True),
+            x='Impact', y='Feature', orientation='h',
+            title=title, color='Feature', color_discrete_sequence=palette,
+            hover_data={'Impact': ':.2f'}
+        )
+        fig.update_traces(hovertemplate='%{y}: %{x:.2f}')
         st.plotly_chart(fig, use_container_width=True)
 
+    if impact_choice == "SHAP Bar":
+        st.markdown("**Energy Saving Influence (from SHAP)**")
+        plot_shap(shap_energy_df, "Feature Importance – Energy Saving")
+        st.markdown("**Retrofit Cost Influence (proxy)**")
+        plot_shap(shap_cost_df, "Feature Importance – Retrofit Cost")
+
+    elif impact_choice == "SHAP Dot":
+        fig = px.scatter(
+            shap_energy_df, x='Impact', y='Feature',
+            color='Feature', color_discrete_sequence=palette,
+            title="SHAP Dot Plot – Energy Saving Impact",
+            hover_data={'Impact': ':.2f'}
+        )
+        fig.update_traces(marker=dict(size=10, opacity=0.8),
+                          hovertemplate='%{y}: %{x:.2f}')
+        st.plotly_chart(fig, use_container_width=True)
+
+    elif impact_choice == "Waterfall":
+        fig = go.Figure(go.Waterfall(
+            name="Impact", orientation="v",
+            measure=["relative"]*len(shap_energy_df),
+            x=shap_energy_df['Feature'],
+            y=shap_energy_df['Impact'],
+            connector={"line": {"color": "#243C2C"}}
+        ))
+        fig.update_layout(title="Feature Contribution to Energy KPI",
+                          font=dict(color='#243C2C'))
+        fig.update_traces(hovertemplate='%{x}: %{y:.2f}')
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:  # Radar
+        cats = list(shap_energy_df['Feature']) + [shap_energy_df['Feature'].iloc[0]]
+        vals = list(shap_energy_df['Impact']) + [shap_energy_df['Impact'].iloc[0]]
+        fig = go.Figure(data=go.Scatterpolar(
+            r=vals, theta=cats, fill='toself',
+            marker=dict(color='#7A9544')
+        ))
+        fig.update_layout(title="Radar Chart of Energy Measure Impacts",
+                          polar=dict(radialaxis=dict(visible=True, showline=True)),
+                          font=dict(color='#243C2C'))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --------------------------
+    # 3️⃣ Impact Index Calculation
+    # --------------------------
     st.subheader("🎛️ Adjustable Impact Index")
-    w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.5)
-    w2 = st.slider("Weight: Payback (inverse)", 0.0, 1.0, 0.3)
+
+    w1 = st.slider("Weight: Energy Saving", 0.0, 1.0, 0.4)
+    w2 = st.slider("Weight: Payback (inverse)", 0.0, 1.0, 0.25)
     w3 = st.slider("Weight: CAPEX (inverse)", 0.0, 1.0, 0.2)
-    impact_index = w1*energy_saving_pct - w2*(payback_years or 0) - w3*(CAPEX/10000)
-    st.write(f"Impact Index Score: **{impact_index:.2f}**")
+    w4 = st.slider("Weight: Carbon Emission (inverse)", 0.0, 1.0, 0.15)
+
+    impact_index = (
+        w1 * energy_saving_pct
+        - w2 * (payback_years or 0)
+        - w3 * (CAPEX / 10000)
+        - w4 * (carbon_emission / 1000)
+    )
+
+    st.markdown("**Impact Index Formula:**")
+    st.latex(r"""
+    \text{Impact Index} =
+    (w_1 \times \text{Energy Saving \%}) -
+    (w_2 \times \text{Payback (years)}) -
+    (w_3 \times \frac{\text{CAPEX}}{10,000}) -
+    (w_4 \times \frac{\text{Carbon Emission}}{1,000})
+    """)
+
+    st.success(f"Impact Index Score: **{impact_index:.2f}**")
+
 
 # TRADE-OFF TAB
 with tabs[4]:
