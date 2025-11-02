@@ -455,18 +455,102 @@ with tabs[3]:
     st.caption("Higher index = better combined performance after weighting.")
 
 # -----------------------------------------------------
-# ⚖️ Trade-off Explorer Tab
+# ⚖️ Trade-off Explorer Tab (Upgraded)
 # -----------------------------------------------------
 with tabs[4]:
     st.subheader("Trade-off Explorer")
-    st.caption("Explore trade-offs between energy savings, cost, and payback performance.")
-    trade_type=st.selectbox("Choose Visualization",["Pareto Front","2D Contour","Animated"])
-    if trade_type=="Pareto Front":
-        df=pd.DataFrame({"Energy Saving (%)":[10,20,30,35,40],"Payback (yrs)":[2,4,6,8,10]})
-        fig=px.line(df,x="Energy Saving (%)",y="Payback (yrs)",markers=True,
-                    title="Pareto Front: Energy vs Payback",color_discrete_sequence=["#a3b565"])
-        fig.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig,use_container_width=True)
+    st.caption("Explore trade-offs between energy savings, retrofit cost, and payback performance.")
+
+    # === Load or reference dataset ===
+    # Your dataframe should already exist earlier in the app (e.g., df or df_results)
+    # Columns needed: "Energy Saving (%)", "Payback (yrs)", and retrofit measure columns
+    try:
+        df_display = df.copy()
+    except NameError:
+        st.warning("No dataset found. Please ensure 'df' with Energy Saving and Payback columns is loaded.")
+        st.stop()
+
+    # --- User Input: Target Settings ---
+    st.markdown("### 🎯 Set Your Targets")
+    col1, col2 = st.columns(2)
+    target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
+    max_payback = col2.slider("Maximum Payback (years)", 1, 12, 6, step=1)
+
+    # --- Filter Feasible Options ---
+    feasible = df_display[
+        (df_display["Energy Saving (%)"] >= target_saving) &
+        (df_display["Payback (yrs)"] <= max_payback)
+    ]
+
+    st.markdown("### 📊 Pareto Front (Energy vs Payback)")
+    # --- Compute Pareto Front ---
+    def pareto_front(df, x_col, y_col):
+        points = df[[x_col, y_col]].values
+        is_dominated = np.zeros(len(points), dtype=bool)
+        for i, p in enumerate(points):
+            if any((points[:,0] >= p[0]) & (points[:,1] <= p[1]) & ((points[:,0] > p[0]) | (points[:,1] < p[1]))):
+                is_dominated[i] = True
+        return df[~is_dominated]
+
+    pareto_df = pareto_front(df_display, "Energy Saving (%)", "Payback (yrs)")
+
+    # --- Plot Pareto Front ---
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_display["Energy Saving (%)"],
+        y=df_display["Payback (yrs)"],
+        mode="markers",
+        name="All Cases",
+        marker=dict(color="#c4c3e3", size=8, opacity=0.5)
+    ))
+    fig.add_trace(go.Scatter(
+        x=pareto_df["Energy Saving (%)"],
+        y=pareto_df["Payback (yrs)"],
+        mode="lines+markers",
+        name="Pareto Front",
+        line=dict(color="#a3b565", width=3),
+        marker=dict(size=9, color="#a3b565")
+    ))
+    if not feasible.empty:
+        fig.add_trace(go.Scatter(
+            x=feasible["Energy Saving (%)"],
+            y=feasible["Payback (yrs)"],
+            mode="markers",
+            name="Feasible Solutions",
+            marker=dict(color="#504e76", size=10, symbol="star")
+        ))
+
+    fig.update_yaxes(autorange="reversed", title="Payback (years)")
+    fig.update_xaxes(title="Energy Saving (%)")
+    fig.update_layout(
+        title="Energy–Economic Trade-off Map",
+        font=dict(color="#243C2C"),
+        legend=dict(orientation="h", y=-0.2),
+        height=450
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # --- Display Feasible Results ---
+    if not feasible.empty:
+        st.success(f"{len(feasible)} feasible retrofit option(s) found matching your targets.")
+        display_cols = [
+            col for col in feasible.columns if col not in ["Case_ID"]
+        ]
+        st.dataframe(feasible[display_cols].sort_values(by="Payback (yrs)"), use_container_width=True)
+    else:
+        st.warning("No retrofit combination meets your targets. Try adjusting thresholds.")
+
+    # --- Summary Guidance ---
+    st.markdown("""
+    <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
+        Based on your selected targets, the highlighted points on the Pareto Front
+        represent retrofit strategies that deliver the best balance between
+        energy performance and economic return.<br><br>
+        Adjust the sliders to explore how relaxing or tightening your goals
+        changes the feasible set of retrofit options.
+    </div>
+    """, unsafe_allow_html=True)
+
     elif trade_type=="2D Contour":
         x=np.linspace(8,14,30);y=np.linspace(24,27,30)
         X,Y=np.meshgrid(x,y)
