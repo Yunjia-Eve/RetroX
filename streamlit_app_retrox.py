@@ -121,15 +121,32 @@ X_input["HighAlbedoWall_Cool"] = 1 if albedo=="Cool" else 0
 lighting_pred = models["Lighting_kWh"].predict(X_input)[0]
 cooling_pred  = models["Cooling_kWh"].predict(X_input)[0]
 cool_load_pred= models["Cooling_Load_kWh"].predict(X_input)[0]
-room_elec = BASELINE["Room_kWh"]
-total_energy = lighting_pred + cooling_pred + room_elec
 
-energy_saving_pct = (BASELINE["Total_kWh"]-total_energy)/BASELINE["Total_kWh"]*100
-cool_saving_pct   = (BASELINE["Cooling_Load_kWh"]-cool_load_pred)/BASELINE["Cooling_Load_kWh"]*100
+# --- Room electricity fixed by insulation & albedo ---
+if insul == "Low" and albedo == "Base":
+    room_elec = 31598.3
+elif insul == "Low" and albedo == "Cool":
+    room_elec = 31556.6
+elif insul == "Med" and albedo == "Base":
+    room_elec = 31452.5
+elif insul == "Med" and albedo == "Cool":
+    room_elec = 31410.9
+elif insul == "High" and albedo == "Base":
+    room_elec = 31203.0
+elif insul == "High" and albedo == "Cool":
+    room_elec = 31161.4
+else:
+    room_elec = BASELINE["Room_kWh"]
+
+# --- Total energy & KPIs ---
+total_energy = lighting_pred + cooling_pred + room_elec
+energy_saving_pct = (BASELINE["Total_kWh"] - total_energy) / BASELINE["Total_kWh"] * 100
+cool_saving_pct   = (BASELINE["Cooling_Load_kWh"] - cool_load_pred) / BASELINE["Cooling_Load_kWh"] * 100
 EUI = total_energy / GFA
 carbon_emission = total_energy * carbon_factor
-annual_saving = (BASELINE["Total_kWh"]-total_energy)*tariff
-payback_years = CAPEX/annual_saving if annual_saving>0 else None
+annual_saving = (BASELINE["Total_kWh"] - total_energy) * tariff
+payback_years = CAPEX / annual_saving if annual_saving > 0 else None
+
 
 # -----------------------------------------------------
 # 8️⃣ Tabs
