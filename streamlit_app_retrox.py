@@ -574,7 +574,7 @@ with tabs[4]:
     pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)").sort_values("Energy Saving (%)")
 
     # === 6️⃣ User target sliders ===
-    st.markdown("### 🎯 Set Your Targets")
+    st.markdown("### Set Your Targets")
     col1, col2 = st.columns(2)
     target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
     max_payback = col2.slider("Maximum Payback (years)", 1, 12, 6, step=1)
@@ -627,7 +627,7 @@ with tabs[4]:
     # -----------------------------------------------------
     # 🔍 Cluster Exploration Section (Interactive Visualization)
     # -----------------------------------------------------
-    st.markdown("### 🔍 Explore Measure Influence in Clusters")
+    st.markdown("### Explore Measure Influence in Clusters")
     st.caption("Select a retrofit measure to see how its values distribute across the trade-off space.")
     
     # --- Dropdown for measure selection ---
