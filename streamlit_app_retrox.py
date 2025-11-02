@@ -517,9 +517,25 @@ with tabs[4]:
     
     data = generate_dataset()
    
-    # --- Predict energy using surrogate models ---
-    data["Cooling_kWh"] = models["cooling"].predict(data[models["cooling"].feature_names_in_])
-    data["Lighting_kWh"] = models["lighting"].predict(data[models["lighting"].feature_names_in_])
+    # --- Predict energy using surrogate models (after encoding) ---
+    # One-hot encode categorical variables
+    data_encoded = pd.get_dummies(data, drop_first=False)
+    
+    # Ensure all model-required columns exist (fill missing with 0)
+    for col in models["cooling"].feature_names_in_:
+        if col not in data_encoded.columns:
+            data_encoded[col] = 0
+    for col in models["lighting"].feature_names_in_:
+        if col not in data_encoded.columns:
+            data_encoded[col] = 0
+    
+    # Align column order
+    data_encoded = data_encoded.reindex(columns=models["cooling"].feature_names_in_, fill_value=0)
+    
+    # Predict cooling and lighting
+    data["Cooling_kWh"] = models["cooling"].predict(data_encoded)
+    data["Lighting_kWh"] = models["lighting"].predict(data_encoded)
+
 
     # === 3️⃣ Calculate energy & payback ===
     baseline_energy = BASELINE["Total_kWh"]
