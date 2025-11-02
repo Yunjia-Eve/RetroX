@@ -685,36 +685,37 @@ with tabs[4]:
         if x_measure == y_measure:
             st.warning("Please select two different measures.")
         else:
-            # check if variables are categorical or continuous
+            # determine type
             x_is_cat = data[x_measure].dtype == 'object'
             y_is_cat = data[y_measure].dtype == 'object'
     
-            if x_is_cat and y_is_cat:
-                # both categorical → fixed order for known variables
-                cat_order = {
-                    "Glazing": ["Single", "Double", "LowE"],
-                    "Insulation": ["Low", "Med", "High"],
-                    "ScheduleAdj": ["Base", "Tight"],
-                    "LinearControl": ["No", "Yes"],
-                    "HighAlbedoWall": ["Base", "Cool"]
-                }
-                x_levels = cat_order.get(x_measure, sorted(np.unique(data[x_measure])))
-                y_levels = cat_order.get(y_measure, sorted(np.unique(data[y_measure])))
+            # --- custom order dictionaries ---
+            cat_order = {
+                "Glazing": ["Single", "Double", "LowE"],
+                "Insulation": ["Low", "Med", "High"],
+                "ScheduleAdj": ["Base", "Tight"],
+                "LinearControl": ["No", "Yes"],
+                "HighAlbedoWall": ["Base", "Cool"]
+            }
     
+            if x_is_cat and y_is_cat:
+                # both categorical — manual order
+                x_levels = cat_order.get(x_measure, list(np.unique(data[x_measure])))
+                y_levels = cat_order.get(y_measure, list(np.unique(data[y_measure])))
                 combos = pd.MultiIndex.from_product([x_levels, y_levels], names=[x_measure, y_measure])
                 contour_df = pd.DataFrame(index=combos).reset_index()
     
             else:
-                # at least one continuous → create meshgrid (2 decimal precision)
-                grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if not x_is_cat else np.unique(data[x_measure])
-                grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if not y_is_cat else np.unique(data[y_measure])
+                # at least one continuous — numeric grid
+                grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if not x_is_cat else cat_order.get(x_measure, np.unique(data[x_measure]))
+                grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if not y_is_cat else cat_order.get(y_measure, np.unique(data[y_measure]))
                 X, Y = np.meshgrid(np.round(grid_x, 2), np.round(grid_y, 2))
                 contour_df = pd.DataFrame({
                     x_measure: X.flatten(),
                     y_measure: Y.flatten()
                 })
     
-            # fill other measures with default or mean values
+            # --- fill defaults for other measures ---
             fixed_values = {
                 "Glazing": "LowE",
                 "Insulation": "High",
@@ -730,7 +731,7 @@ with tabs[4]:
                 if m not in [x_measure, y_measure]:
                     contour_df[m] = np.round(data[m].mean(), 2)
     
-            # === Predict KPIs ===
+            # --- predictions ---
             contour_encoded = pd.get_dummies(contour_df, drop_first=False)
             for model in models.values():
                 for col in model.feature_names_in_:
@@ -744,8 +745,12 @@ with tabs[4]:
             contour_df["Energy Saving (%)"] = (1 - contour_df["Total_kWh"] / baseline_energy) * 100
             contour_df["Payback (yrs)"] = 50000 / ((baseline_energy - contour_df["Total_kWh"]) * tariff)
     
-            # === Reshape for contour plotting ===
+            # --- reshape grid for plotting ---
             if x_is_cat and y_is_cat:
+                # enforce categorical order before pivot
+                contour_df[x_measure] = pd.Categorical(contour_df[x_measure], categories=cat_order.get(x_measure, np.unique(data[x_measure])), ordered=True)
+                contour_df[y_measure] = pd.Categorical(contour_df[y_measure], categories=cat_order.get(y_measure, np.unique(data[y_measure])), ordered=True)
+    
                 Z = contour_df.pivot(index=y_measure, columns=x_measure, values=kpi_choice)
                 x_vals, y_vals = np.arange(len(Z.columns)), np.arange(len(Z.index))
             else:
@@ -756,7 +761,7 @@ with tabs[4]:
                 x_vals = np.unique(np.round(contour_df[x_measure], 2))
                 y_vals = np.unique(np.round(contour_df[y_measure], 2))
     
-            # === Colors ===
+            # --- color logic ---
             if not x_is_cat and not y_is_cat:
                 colorscale = [[0, "#a3b565"], [0.5, "#fcdd9d"], [1, "#c4c3e3"]]
             else:
@@ -765,7 +770,7 @@ with tabs[4]:
                     [0.6, "#AF93BB"], [0.8, "#9C83A3"], [1, "#897191"]
                 ]
     
-            # === Draw contour ===
+            # --- plot contour ---
             fig_contour = go.Figure(data=go.Contour(
                 z=Z if isinstance(Z, np.ndarray) else Z.values,
                 x=x_vals if isinstance(Z, np.ndarray) else np.arange(len(Z.columns)),
@@ -775,7 +780,7 @@ with tabs[4]:
                 colorbar=dict(title=kpi_choice),
             ))
     
-            # === Layout and axis labels ===
+            # --- axis setup ---
             fig_contour.update_layout(
                 title=f"Iso-performance Map: {kpi_choice}<br>({x_measure} vs {y_measure})",
                 xaxis_title=x_measure,
@@ -783,12 +788,12 @@ with tabs[4]:
                 xaxis=dict(
                     tickmode='array',
                     tickvals=np.arange(len(Z.columns)) if x_is_cat and y_is_cat else x_vals,
-                    ticktext=Z.columns if x_is_cat and y_is_cat else [f"{v:.2f}" for v in x_vals]
+                    ticktext=list(Z.columns) if x_is_cat and y_is_cat else [f"{v:.2f}" for v in x_vals]
                 ),
                 yaxis=dict(
                     tickmode='array',
                     tickvals=np.arange(len(Z.index)) if x_is_cat and y_is_cat else y_vals,
-                    ticktext=Z.index if x_is_cat and y_is_cat else [f"{v:.2f}" for v in y_vals]
+                    ticktext=list(Z.index) if x_is_cat and y_is_cat else [f"{v:.2f}" for v in y_vals]
                 ),
                 font=dict(color="#243C2C"),
                 height=500
