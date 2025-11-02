@@ -45,7 +45,7 @@ models = {
 # -----------------------------------------------------
 # 3️⃣ User Inputs
 # -----------------------------------------------------
-st.sidebar.header("Building Inputs")
+st.sidebar.header("Retrofit Measures")
 glazing  = st.sidebar.selectbox("Glazing Type", ["Single", "Double", "Low-E"])
 insul    = st.sidebar.selectbox("Insulation", ["Low", "Med", "High"])
 LPD      = st.sidebar.slider("Lighting Power Density (W/m²)", 8.0, 14.0, 10.0)
@@ -58,7 +58,7 @@ albedo   = st.sidebar.radio("High-Albedo Wall/Roof", ["Base", "Cool"])
 # -----------------------------------------------------
 # 4️⃣ Cost Settings
 # -----------------------------------------------------
-st.sidebar.header("Tariff & Cost Settings")
+st.sidebar.header("Unit Rate Settings")
 def flexible_input(label, refs, default=1):
     mode = st.sidebar.radio(f"{label} Input", ["Reference", "Custom"], key=label)
     if mode == "Reference":
