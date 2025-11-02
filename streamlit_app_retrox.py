@@ -679,23 +679,38 @@ with tabs[4]:
         if x_measure == y_measure:
             st.warning("Please select two different measures.")
         else:
-            grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if data[x_measure].dtype != 'object' else np.unique(data[x_measure])
-            grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if data[y_measure].dtype != 'object' else np.unique(data[y_measure])
-            X, Y = np.meshgrid(grid_x, grid_y)
+            # handle categorical vs continuous
+            x_is_cat = data[x_measure].dtype == 'object'
+            y_is_cat = data[y_measure].dtype == 'object'
 
+            if x_is_cat and y_is_cat:
+                # both categorical -> all combinations
+                x_levels = np.unique(data[x_measure])
+                y_levels = np.unique(data[y_measure])
+                combos = pd.MultiIndex.from_product([x_levels, y_levels], names=[x_measure, y_measure])
+                contour_df = pd.DataFrame(index=combos).reset_index()
+            else:
+                # at least one continuous -> use meshgrid
+                grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if not x_is_cat else np.unique(data[x_measure])
+                grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if not y_is_cat else np.unique(data[y_measure])
+                X, Y = np.meshgrid(grid_x, grid_y)
+                contour_df = pd.DataFrame({
+                    x_measure: X.flatten(),
+                    y_measure: Y.flatten()
+                })
+
+            # fill fixed values for remaining measures
             fixed_values = {"Glazing": "LowE", "Insulation": "High", "ScheduleAdj": "Base", 
                             "LinearControl": "No", "HighAlbedoWall": "Base"}
-
-            contour_df = pd.DataFrame({
-                x_measure: X.flatten(),
-                y_measure: Y.flatten(),
-                **fixed_values
-            })
+            for k, v in fixed_values.items():
+                if k not in contour_df.columns:
+                    contour_df[k] = v
 
             for m in ["LPD_Wm2", "HVAC_Setpoint_C", "ShadingDepth_m"]:
                 if m not in [x_measure, y_measure]:
                     contour_df[m] = data[m].mean()
 
+            # prediction + KPI calculations
             contour_encoded = pd.get_dummies(contour_df, drop_first=False)
             for model in models.values():
                 for col in model.feature_names_in_:
@@ -709,24 +724,48 @@ with tabs[4]:
             contour_df["Energy Saving (%)"] = (1 - contour_df["Total_kWh"] / baseline_energy) * 100
             contour_df["Payback (yrs)"] = 50000 / ((baseline_energy - contour_df["Total_kWh"]) * tariff)
 
-            Z = contour_df[kpi_choice].values.reshape(X.shape)
+            # grid reshape for contour
+            if x_is_cat and y_is_cat:
+                Z = contour_df.pivot(index=y_measure, columns=x_measure, values=kpi_choice)
+                x_vals, y_vals = np.arange(len(Z.columns)), np.arange(len(Z.index))
+            else:
+                Z = contour_df[kpi_choice].values.reshape(len(np.unique(contour_df[y_measure])),
+                                                          len(np.unique(contour_df[x_measure])))
+                x_vals = np.unique(contour_df[x_measure])
+                y_vals = np.unique(contour_df[y_measure])
 
-            # Color logic
-            if (data[x_measure].dtype != 'object') and (data[y_measure].dtype != 'object'):
+            # choose color palette
+            if not x_is_cat and not y_is_cat:
                 colorscale = [[0, "#a3b565"], [0.5, "#fcdd9d"], [1, "#c4c3e3"]]
             else:
                 colorscale = [[0, "#E0D1E6"], [0.2, "#DBC7E0"], [0.4, "#CFB6D6"], 
                               [0.6, "#AF93BB"], [0.8, "#9C83A3"], [1, "#897191"]]
 
+            # draw contour
             fig_contour = go.Figure(data=go.Contour(
-                z=Z, x=grid_x, y=grid_y,
+                z=Z if isinstance(Z, np.ndarray) else Z.values,
+                x=x_vals if isinstance(Z, np.ndarray) else np.arange(len(Z.columns)),
+                y=y_vals if isinstance(Z, np.ndarray) else np.arange(len(Z.index)),
                 colorscale=colorscale,
                 contours=dict(showlabels=True, labelfont=dict(size=10, color="black")),
                 colorbar=dict(title=kpi_choice),
             ))
+
+            # set axis labels (handle categorical tick names)
             fig_contour.update_layout(
                 title=f"Iso-performance Map: {kpi_choice}<br>({x_measure} vs {y_measure})",
                 xaxis_title=x_measure, yaxis_title=y_measure,
+                xaxis=dict(
+                    tickmode='array',
+                    tickvals=np.arange(len(Z.columns)) if x_is_cat and y_is_cat else x_vals,
+                    ticktext=Z.columns if x_is_cat and y_is_cat else None
+                ),
+                yaxis=dict(
+                    tickmode='array',
+                    tickvals=np.arange(len(Z.index)) if x_is_cat and y_is_cat else y_vals,
+                    ticktext=Z.index if x_is_cat and y_is_cat else None
+                ),
                 font=dict(color="#243C2C"), height=500
             )
+
             st.plotly_chart(fig_contour, use_container_width=True)
