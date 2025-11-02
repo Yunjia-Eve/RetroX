@@ -488,43 +488,50 @@ with tabs[4]:
         models = {
             "cooling": joblib.load("LR_Cooling_kWh_model.pkl"),
             "lighting": joblib.load("XGB_Lighting_kWh_model.pkl"),
-            "room": joblib.load("LR_Room_kWh_model.pkl"),
         }
         return models
 
     models = load_models()
 
-    # === 2️⃣ Generate random retrofit combinations (LHS sampling) ===
-    # --- Generate random samples without pyDOE3 ---
+    # === 2️⃣ Generate random retrofit combinations ===
     n_samples = 500
     LHS = np.random.rand(n_samples, 8)
-
 
     data = pd.DataFrame({
         "Glazing": np.where(LHS[:,0] < 0.33, "Single",
                      np.where(LHS[:,0] < 0.66, "Double", "LowE")),
-        "Insulation": np.where(LHS[:,1] < 0.5, "Med", "High"),
+        "Insulation": np.where(LHS[:,1] < 0.33, "Low",
+                        np.where(LHS[:,1] < 0.66, "Med", "High")),
         "LPD_Wm2": 8 + LHS[:,2] * (12 - 8),
         "HVAC_Setpoint_C": 24 + LHS[:,3] * (27 - 24),
         "ShadingDepth_m": LHS[:,4] * 1.0,
-        "ScheduleAdj": np.where(LHS[:,5] < 0.5, "Base", "Tight"),
+        "ScheduleAdj": np.where(LHS[:,5] < 0.5, "Base", "Adjusted"),
         "LinearControl": np.where(LHS[:,6] < 0.5, "No", "Yes"),
-        "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Yes"),
+        "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Cool"),
     })
 
-    # === 3️⃣ Predict performance using surrogate models ===
-    # You can customize this depending on your trained outputs
+    # === 3️⃣ Predict energy using surrogate models ===
     data["Cooling_kWh"] = models["cooling"].predict(data[models["cooling"].feature_names_in_])
     data["Lighting_kWh"] = models["lighting"].predict(data[models["lighting"].feature_names_in_])
-    data["Room_kWh"] = models["room"].predict(data[models["room"].feature_names_in_])
 
+    # --- Room electricity fixed by insulation & albedo ---
+    def room_elec(insul, albedo):
+        if insul == "Low" and albedo == "Base": return 31598.3
+        elif insul == "Low" and albedo == "Cool": return 31556.6
+        elif insul == "Med" and albedo == "Base": return 31452.5
+        elif insul == "Med" and albedo == "Cool": return 31410.9
+        elif insul == "High" and albedo == "Base": return 31203.0
+        elif insul == "High" and albedo == "Cool": return 31161.4
+        else: return 31598.3
+
+    data["Room_kWh"] = data.apply(lambda x: room_elec(x["Insulation"], x["HighAlbedoWall"]), axis=1)
     data["Total_kWh"] = data["Cooling_kWh"] + data["Lighting_kWh"] + data["Room_kWh"]
 
-    # Example baseline value — replace with your actual baseline
+    # --- Baseline assumptions ---
     baseline_energy = 200000
     baseline_cost = 0.35  # SGD/kWh
-    baseline_capex = 0
 
+    # === 4️⃣ KPI calculations ===
     data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
     data["Retrofit Cost (SGD)"] = (
         200 * (data["Glazing"] != "Single") +
@@ -532,12 +539,12 @@ with tabs[4]:
         20 * (12 - data["LPD_Wm2"]) +
         100 * (data["ShadingDepth_m"]) +
         30 * (data["LinearControl"] == "Yes") +
-        15 * (data["HighAlbedoWall"] == "Yes")
+        15 * (data["HighAlbedoWall"] == "Cool")
     )
     data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * baseline_cost
     data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
 
-    # === 4️⃣ User target inputs ===
+    # === 5️⃣ User targets ===
     st.markdown("### 🎯 Set Your Targets")
     col1, col2 = st.columns(2)
     target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
@@ -548,18 +555,19 @@ with tabs[4]:
         (data["Payback (yrs)"] <= max_payback)
     ]
 
-    # === 5️⃣ Pareto front function ===
+    # === 6️⃣ Pareto front ===
     def pareto_front(df, x_col, y_col):
         points = df[[x_col, y_col]].values
         is_dominated = np.zeros(len(points), dtype=bool)
         for i, p in enumerate(points):
-            if any((points[:,0] >= p[0]) & (points[:,1] <= p[1]) & ((points[:,0] > p[0]) | (points[:,1] < p[1]))):
+            if any((points[:,0] >= p[0]) & (points[:,1] <= p[1]) &
+                   ((points[:,0] > p[0]) | (points[:,1] < p[1]))):
                 is_dominated[i] = True
         return df[~is_dominated]
 
     pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)")
 
-    # === 6️⃣ Plot Pareto front ===
+    # === 7️⃣ Plot Pareto front ===
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data["Energy Saving (%)"], y=data["Payback (yrs)"],
@@ -588,7 +596,7 @@ with tabs[4]:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # === 7️⃣ Show feasible results ===
+    # === 8️⃣ Feasible results table ===
     if not feasible.empty:
         st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
         show_cols = ["Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
@@ -598,7 +606,7 @@ with tabs[4]:
     else:
         st.warning("No combination meets your targets. Try adjusting thresholds.")
 
-    # === 8️⃣ Guidance ===
+    # === 9️⃣ Guidance ===
     st.markdown("""
     <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
         This chart and table are generated using your trained surrogate models.<br>
