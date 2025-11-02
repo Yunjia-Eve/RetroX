@@ -684,9 +684,30 @@ with tabs[4]:
             y_is_cat = data[y_measure].dtype == 'object'
 
             if x_is_cat and y_is_cat:
-                # both categorical -> all combinations
-                x_levels = np.unique(data[x_measure])
-                y_levels = np.unique(data[y_measure])
+                # both categorical -> ensure correct order for known measures
+                cat_order = {
+                    "Glazing": ["Single", "Double", "LowE"],
+                    "Insulation": ["Low", "Med", "High"],
+                    "ScheduleAdj": ["Base", "Tight"],
+                    "LinearControl": ["No", "Yes"],
+                    "HighAlbedoWall": ["Base", "Cool"]
+                }
+            
+                x_levels = cat_order.get(x_measure, sorted(np.unique(data[x_measure])))
+                y_levels = cat_order.get(y_measure, sorted(np.unique(data[y_measure])))
+            
+                combos = pd.MultiIndex.from_product([x_levels, y_levels], names=[x_measure, y_measure])
+                contour_df = pd.DataFrame(index=combos).reset_index()
+            else:
+                # at least one continuous -> use meshgrid (round to 2 decimals)
+                grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if not x_is_cat else np.unique(data[x_measure])
+                grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if not y_is_cat else np.unique(data[y_measure])
+                X, Y = np.meshgrid(np.round(grid_x, 2), np.round(grid_y, 2))
+                contour_df = pd.DataFrame({
+                    x_measure: X.flatten(),
+                    y_measure: Y.flatten()
+                })
+
                 combos = pd.MultiIndex.from_product([x_levels, y_levels], names=[x_measure, y_measure])
                 contour_df = pd.DataFrame(index=combos).reset_index()
             else:
