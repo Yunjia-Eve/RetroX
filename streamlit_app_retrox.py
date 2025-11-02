@@ -585,11 +585,18 @@ with tabs[4]:
         points = df[[x_col, y_col]].values
         is_dominated = np.zeros(len(points), dtype=bool)
         for i, p in enumerate(points):
-            if any((points[:,0] >= p[0]) & (points[:,1] <= p[1]) & ((points[:,0] > p[0]) | (points[:,1] < p[1]))):
+            if any(
+                (points[:, 0] >= p[0]) & (points[:, 1] <= p[1]) &
+                ((points[:, 0] > p[0]) | (points[:, 1] < p[1]))
+            ):
                 is_dominated[i] = True
         return df[~is_dominated]
-
+    
     pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)")
+    
+    # 🔧 Sort Pareto points by Energy Saving for smooth curve
+    pareto_df = pareto_df.sort_values(by="Energy Saving (%)", ascending=True)
+
 
     # === 6️⃣ User-defined targets (feasible zone) ===
     st.markdown("### 🎯 Set Your Targets")
@@ -640,21 +647,46 @@ with tabs[4]:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # === 9️⃣ Display feasible table ===
+   # === 9️⃣ Display feasible table and best case details ===
     if not feasible.empty:
+        feasible = feasible.reset_index(drop=True)
+        feasible["Case_ID"] = feasible.index + 1  # assign readable case numbers
         st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
-        show_cols = ["Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
+    
+        # Display summary table
+        show_cols = ["Case_ID","Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
                      "ShadingDepth_m","ScheduleAdj","LinearControl","HighAlbedoWall",
                      "Energy Saving (%)","Payback (yrs)"]
         st.dataframe(feasible[show_cols].sort_values(by="Payback (yrs)"), use_container_width=True)
+    
+        # --- Highlight the best feasible option (orange text) ---
+        best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).head(1).iloc[0]
+        combo_info = f"""
+        <p style='color:#f1642e; font-weight:bold; font-size:16px;'>
+            Best Feasible Option – Case {int(best_case['Case_ID'])}<br>
+            Glazing: {best_case['Glazing']} &nbsp;|&nbsp;
+            Insulation: {best_case['Insulation']} &nbsp;|&nbsp;
+            LPD: {best_case['LPD_Wm2']:.1f} W/m² &nbsp;|&nbsp;
+            HVAC: {best_case['HVAC_Setpoint_C']:.1f} °C &nbsp;|&nbsp;
+            Shading: {best_case['ShadingDepth_m']:.2f} m<br>
+            Schedule: {best_case['ScheduleAdj']} &nbsp;|&nbsp;
+            Linear Control: {best_case['LinearControl']} &nbsp;|&nbsp;
+            Albedo: {best_case['HighAlbedoWall']}<br>
+            Energy Saving: {best_case['Energy Saving (%)']:.1f}% &nbsp;|&nbsp;
+            Payback: {best_case['Payback (yrs)']:.1f} years
+        </p>
+        """
+        st.markdown(combo_info, unsafe_allow_html=True)
+    
     else:
         st.warning("No combination meets your targets. Try adjusting thresholds.")
-
+    
     # === 🔍 Guidance ===
     st.markdown("""
     <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
         The Pareto front (green line) represents globally optimal trade-offs between energy savings and payback.<br>
         Feasible solutions (purple dots) update dynamically with your targets.<br>
-        The best feasible option (orange) achieves the highest savings within your limits.
+        The best feasible option (orange) achieves the highest savings within your limits and is detailed above.
     </div>
     """, unsafe_allow_html=True)
+
