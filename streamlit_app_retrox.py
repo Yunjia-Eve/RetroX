@@ -464,13 +464,12 @@ with tabs[4]:
     import joblib
     import numpy as np
     import pandas as pd
-    from pyDOE3 import lhs
 
     # === 1️⃣ Load your trained surrogate models ===
     @st.cache_resource
     def load_models():
         models = {
-            "cooling": joblib.load("RF_Cooling_kWh_model.pkl"),
+            "cooling": joblib.load("LR_Cooling_kWh_model.pkl"),
             "lighting": joblib.load("XGB_Lighting_kWh_model.pkl"),
             "room": joblib.load("LR_Room_kWh_model.pkl"),
         }
@@ -479,9 +478,10 @@ with tabs[4]:
     models = load_models()
 
     # === 2️⃣ Generate random retrofit combinations (LHS sampling) ===
+    # --- Generate random samples without pyDOE3 ---
     n_samples = 500
-    n_vars = 8
-    LHS = lhs(n_vars, samples=n_samples)
+    LHS = np.random.rand(n_samples, 8)
+
 
     data = pd.DataFrame({
         "Glazing": np.where(LHS[:,0] < 0.33, "Single",
