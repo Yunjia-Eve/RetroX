@@ -624,6 +624,60 @@ with tabs[4]:
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    # -----------------------------------------------------
+    # 🔍 Cluster Exploration Section (Interactive Visualization)
+    # -----------------------------------------------------
+    st.markdown("### 🔍 Explore Measure Influence in Clusters")
+    st.caption("Select a retrofit measure to see how its values distribute across the trade-off space.")
+    
+    # --- Dropdown for measure selection ---
+    measure_choice = st.selectbox(
+        "Select a measure to visualize:",
+        ["HVAC_Setpoint_C", "ScheduleAdj", "Glazing", "Insulation", "LinearControl", "HighAlbedoWall"]
+    )
+    
+    # --- Automatically choose color scale type ---
+    if measure_choice in ["HVAC_Setpoint_C", "LPD_Wm2", "ShadingDepth_m"]:
+        # Continuous variable → gradient
+        fig_cluster = px.scatter(
+            data,
+            x="Energy Saving (%)",
+            y="Payback (yrs)",
+            color=measure_choice,
+            color_continuous_scale="Viridis",
+            title=f"Cluster Distribution by {measure_choice}",
+        )
+    else:
+        # Categorical variable → discrete palette
+        fig_cluster = px.scatter(
+            data,
+            x="Energy Saving (%)",
+            y="Payback (yrs)",
+            color=measure_choice,
+            color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
+            title=f"Cluster Distribution by {measure_choice}",
+        )
+    
+    # --- Refine layout ---
+    fig_cluster.update_yaxes(autorange="reversed", title="Payback (years)")
+    fig_cluster.update_xaxes(title="Energy Saving (%)")
+    fig_cluster.update_layout(
+        height=500,
+        font=dict(color="#243C2C"),
+        legend=dict(orientation="h", y=-0.25),
+    )
+    
+    st.plotly_chart(fig_cluster, use_container_width=True)
+    
+    # --- Explanation ---
+    st.markdown("""
+    <div style='background-color:#eef6fb; padding:15px; border-radius:8px; font-size:15px;'>
+    Each point represents one retrofit combination.<br>
+    The colors show how the selected measure varies across the clusters, helping identify which factors drive distinct retrofit regimes.
+    </div>
+    """, unsafe_allow_html=True)
+
+    
     # === 8️⃣ Display feasible results ===
     if not feasible.empty:
         st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
