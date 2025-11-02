@@ -482,8 +482,9 @@ with tabs[4]:
     import joblib
     import numpy as np
     import pandas as pd
+    import plotly.graph_objects as go
 
-    # === 1️⃣ Load your trained surrogate models ===
+    # === 1️⃣ Load surrogate models (LR for cooling, XGB for lighting) ===
     @st.cache_resource
     def load_models():
         models = {
@@ -494,10 +495,9 @@ with tabs[4]:
 
     models = load_models()
 
-    # === 2️⃣ Generate random retrofit combinations ===
+    # === 2️⃣ Generate random retrofit combinations (LHS sampling) ===
     n_samples = 500
     LHS = np.random.rand(n_samples, 8)
-
     data = pd.DataFrame({
         "Glazing": np.where(LHS[:,0] < 0.33, "Single",
                      np.where(LHS[:,0] < 0.66, "Double", "LowE")),
@@ -511,58 +511,87 @@ with tabs[4]:
         "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Cool"),
     })
 
-    # === 3️⃣ Encode input features to match model training ===
-    encoded_cols = [
-        "Glazing_Low-E", "Glazing_Single",
-        "Insulation_Low", "Insulation_Medium",
-        "ScheduleAdj_Base", "LinearControl_Yes", "HighAlbedoWall_Cool"
-    ]
-    for c in encoded_cols:
-        data[c] = 0
+    # === 3️⃣ Predict energy using surrogate models ===
+    # Use same feature preparation structure as your main model input
+    def encode_features(df):
+        df_encoded = pd.DataFrame({
+            "LPD_Wm2": df["LPD_Wm2"],
+            "HVAC_Setpoint_C": df["HVAC_Setpoint_C"],
+            "ShadingDepth_m": df["ShadingDepth_m"],
+            "Glazing_Low-E": (df["Glazing"] == "LowE").astype(int),
+            "Glazing_Single": (df["Glazing"] == "Single").astype(int),
+            "Insulation_Low": (df["Insulation"] == "Low").astype(int),
+            "Insulation_Medium": (df["Insulation"] == "Med").astype(int),
+            "ScheduleAdj_Base": (df["ScheduleAdj"] == "Base").astype(int),
+            "LinearControl_Yes": (df["LinearControl"] == "Yes").astype(int),
+            "HighAlbedoWall_Cool": (df["HighAlbedoWall"] == "Cool").astype(int),
+        })
+        return df_encoded
 
-    data["Glazing_Low-E"] = (data["Glazing"] == "LowE").astype(int)
-    data["Glazing_Single"] = (data["Glazing"] == "Single").astype(int)
-    data["Insulation_Low"] = (data["Insulation"] == "Low").astype(int)
-    data["Insulation_Medium"] = (data["Insulation"] == "Med").astype(int)
-    data["ScheduleAdj_Base"] = (data["ScheduleAdj"] == "Base").astype(int)
-    data["LinearControl_Yes"] = (data["LinearControl"] == "Yes").astype(int)
-    data["HighAlbedoWall_Cool"] = (data["HighAlbedoWall"] == "Cool").astype(int)
+    X_encoded = encode_features(data)
+    data["Cooling_kWh"] = models["cooling"].predict(X_encoded[models["cooling"].feature_names_in_])
+    data["Lighting_kWh"] = models["lighting"].predict(X_encoded[models["lighting"].feature_names_in_])
 
-    # === 4️⃣ Predict energy using surrogate models ===
-    data["Cooling_kWh"] = models["cooling"].predict(data[models["cooling"].feature_names_in_])
-    data["Lighting_kWh"] = models["lighting"].predict(data[models["lighting"].feature_names_in_])
+    # --- Room electricity fixed by insulation & albedo (given mapping) ---
+    def calc_room_elec(row):
+        mapping = {
+            ("Low", "Base"): 31598.3,
+            ("Low", "Cool"): 31556.6,
+            ("Med", "Base"): 31452.5,
+            ("Med", "Cool"): 31410.9,
+            ("High", "Base"): 31203.0,
+            ("High", "Cool"): 31161.4,
+        }
+        return mapping[(row["Insulation"], row["HighAlbedoWall"])]
+    data["Room_kWh"] = data.apply(calc_room_elec, axis=1)
 
-    # --- Room electricity fixed by insulation & albedo ---
-    def room_elec(insul, albedo):
-        if insul == "Low" and albedo == "Base": return 31598.3
-        elif insul == "Low" and albedo == "Cool": return 31556.6
-        elif insul == "Med" and albedo == "Base": return 31452.5
-        elif insul == "Med" and albedo == "Cool": return 31410.9
-        elif insul == "High" and albedo == "Base": return 31203.0
-        elif insul == "High" and albedo == "Cool": return 31161.4
-        else: return 31598.3
-
-    data["Room_kWh"] = data.apply(lambda x: room_elec(x["Insulation"], x["HighAlbedoWall"]), axis=1)
     data["Total_kWh"] = data["Cooling_kWh"] + data["Lighting_kWh"] + data["Room_kWh"]
 
-    # --- Baseline assumptions ---
-    baseline_energy = 200000
-    baseline_cost = 0.35  # SGD/kWh
+    # === 4️⃣ Energy & cost performance ===
+    baseline_energy = 200000  # replace if needed
+    elec_tariff = 0.35  # SGD/kWh
 
-    # === 5️⃣ KPI calculations ===
-    data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
+    # --- Consistent cost logic with main toolkit ---
+    GFA, WinA = 940, 214  # from your baseline
+    total_wall_roof = 1336  # 939 + 397
+    glazing_costs = {"Single": 0, "Double": 200, "LowE": 300}
+    insul_costs = {"Low": 0, "Med": 45, "High": 55}
+    shading_cost_per_m = 120
+    led_cost = 25
+    hvac_cost = 2000
+    albedo_cost = 25
+    schedule_cost = 2000
+    linearctrl_cost = 30
+
     data["Retrofit Cost (SGD)"] = (
-        200 * (data["Glazing"] != "Single") +
-        45 * (data["Insulation"] == "High") +
-        20 * (12 - data["LPD_Wm2"]) +
-        100 * (data["ShadingDepth_m"]) +
-        30 * (data["LinearControl"] == "Yes") +
-        15 * (data["HighAlbedoWall"] == "Cool")
+        glazing_costs["Double"] * (data["Glazing"] == "Double") * WinA +
+        glazing_costs["LowE"] * (data["Glazing"] == "LowE") * WinA +
+        insul_costs["Med"] * (data["Insulation"] == "Med") * total_wall_roof +
+        insul_costs["High"] * (data["Insulation"] == "High") * total_wall_roof +
+        shading_cost_per_m * data["ShadingDepth_m"] * WinA +
+        led_cost * (12 - data["LPD_Wm2"]) / 4 * GFA +
+        hvac_cost * (data["HVAC_Setpoint_C"] > 24).astype(int) +
+        albedo_cost * (data["HighAlbedoWall"] == "Cool") * total_wall_roof +
+        schedule_cost * (data["ScheduleAdj"] == "Adjusted") +
+        linearctrl_cost * (data["LinearControl"] == "Yes") * GFA
     )
-    data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * baseline_cost
+
+    data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * elec_tariff
+    data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
     data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
 
-    # === 6️⃣ User targets ===
+    # === 5️⃣ Compute Pareto front once (global) ===
+    def pareto_front(df, x_col, y_col):
+        points = df[[x_col, y_col]].values
+        is_dominated = np.zeros(len(points), dtype=bool)
+        for i, p in enumerate(points):
+            if any((points[:,0] >= p[0]) & (points[:,1] <= p[1]) & ((points[:,0] > p[0]) | (points[:,1] < p[1]))):
+                is_dominated[i] = True
+        return df[~is_dominated]
+
+    pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)")
+
+    # === 6️⃣ User-defined targets (feasible zone) ===
     st.markdown("### 🎯 Set Your Targets")
     col1, col2 = st.columns(2)
     target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
@@ -573,24 +602,15 @@ with tabs[4]:
         (data["Payback (yrs)"] <= max_payback)
     ]
 
-    # === 7️⃣ Pareto front ===
-    def pareto_front(df, x_col, y_col):
-        points = df[[x_col, y_col]].values
-        is_dominated = np.zeros(len(points), dtype=bool)
-        for i, p in enumerate(points):
-            if any((points[:,0] >= p[0]) & (points[:,1] <= p[1]) &
-                   ((points[:,0] > p[0]) | (points[:,1] < p[1]))):
-                is_dominated[i] = True
-        return df[~is_dominated]
+    # === 7️⃣ Identify best feasible option (highest saving) ===
+    best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).head(1) if not feasible.empty else None
 
-    pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)")
-
-    # === 8️⃣ Plot Pareto front ===
+    # === 8️⃣ Plot Pareto chart ===
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=data["Energy Saving (%)"], y=data["Payback (yrs)"],
         mode="markers", name="All Predictions",
-        marker=dict(color="#c4c3e3", size=7, opacity=0.5)
+        marker=dict(color="#c4c3e3", size=7, opacity=0.4)
     ))
     fig.add_trace(go.Scatter(
         x=pareto_df["Energy Saving (%)"], y=pareto_df["Payback (yrs)"],
@@ -601,20 +621,26 @@ with tabs[4]:
         fig.add_trace(go.Scatter(
             x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
             mode="markers", name="Feasible Solutions",
-            marker=dict(color="#504e76", size=10, symbol="star")
+            marker=dict(color="#504e76", size=9, opacity=0.8)
         ))
+        if best_case is not None and len(best_case) == 1:
+            fig.add_trace(go.Scatter(
+                x=best_case["Energy Saving (%)"], y=best_case["Payback (yrs)"],
+                mode="markers", name="Best Feasible",
+                marker=dict(color="#f1642e", size=12, line=dict(width=2, color="white"))
+            ))
 
-    fig.update_yaxes(autorange="reversed", title="Payback (years)")
-    fig.update_xaxes(title="Energy Saving (%)")
+    fig.update_yaxes(autorange="reversed", title="Payback (years)", range=[0, 12])
+    fig.update_xaxes(title="Energy Saving (%)", range=[0, 50])
     fig.update_layout(
         title="Model-Predicted Trade-off Frontier",
         font=dict(color="#243C2C"),
         legend=dict(orientation="h", y=-0.25),
-        height=450
+        height=480
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # === 9️⃣ Feasible results table ===
+    # === 9️⃣ Display feasible table ===
     if not feasible.empty:
         st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
         show_cols = ["Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
@@ -624,12 +650,11 @@ with tabs[4]:
     else:
         st.warning("No combination meets your targets. Try adjusting thresholds.")
 
-    # === 🔟 Guidance ===
+    # === 🔍 Guidance ===
     st.markdown("""
     <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
-        This chart and table are generated using your trained surrogate models.<br>
-        The Pareto front shows the optimal trade-offs between energy performance and economic return.<br><br>
-        Adjust the sliders to explore how different savings or payback targets change the feasible retrofit combinations.
+        The Pareto front (green line) represents globally optimal trade-offs between energy savings and payback.<br>
+        Feasible solutions (purple dots) update dynamically with your targets.<br>
+        The best feasible option (orange) achieves the highest savings within your limits.
     </div>
     """, unsafe_allow_html=True)
-
