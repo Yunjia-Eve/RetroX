@@ -550,18 +550,3 @@ with tabs[4]:
         changes the feasible set of retrofit options.
     </div>
     """, unsafe_allow_html=True)
-
-    elif trade_type=="2D Contour":
-        x=np.linspace(8,14,30);y=np.linspace(24,27,30)
-        X,Y=np.meshgrid(x,y)
-        Z=180-(Y-24)*10-(14-X)*5
-        fig=go.Figure(data=go.Contour(z=Z,x=x,y=y,colorscale=[[0,"#c4c3e3"],[0.5,"#fcdd9d"],[1,"#a3b565"]]))
-        fig.update_layout(title="Iso-performance Map (EUI vs LPD & HVAC)",xaxis_title="LPD (W/m²)",yaxis_title="HVAC Setpoint (°C)")
-        st.plotly_chart(fig,use_container_width=True)
-    else:
-        df_anim=pd.DataFrame({"Energy Saving %":[10,20,30,35,40,45],"Payback":[2,4,6,8,10,12],
-                              "Scenario":["LED","Envelope","Passive+Active","Deep","Smart","Extreme"]})
-        fig=px.scatter(df_anim,x="Energy Saving %",y="Payback",animation_frame="Scenario",size="Energy Saving %",
-                       color="Scenario",color_discrete_sequence=palette,title="Animated Trade-off Explorer")
-        fig.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig,use_container_width=True)
