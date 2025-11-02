@@ -455,35 +455,83 @@ with tabs[3]:
     st.caption("Higher index = better combined performance after weighting.")
 
 # -----------------------------------------------------
-# ⚖️ Trade-off Explorer Tab (Upgraded)
+# ⚖️ Trade-off Explorer Tab (Model-Driven Optimization)
 # -----------------------------------------------------
 with tabs[4]:
     st.subheader("Trade-off Explorer")
-    st.caption("Explore trade-offs between energy savings, retrofit cost, and payback performance.")
+    st.caption("Use surrogate models to explore energy–economic trade-offs and find retrofit combinations meeting your targets.")
 
-    # === Load or reference dataset ===
-    # Your dataframe should already exist earlier in the app (e.g., df or df_results)
-    # Columns needed: "Energy Saving (%)", "Payback (yrs)", and retrofit measure columns
-    try:
-        df_display = df.copy()
-    except NameError:
-        st.warning("No dataset found. Please ensure 'df' with Energy Saving and Payback columns is loaded.")
-        st.stop()
+    import joblib
+    import numpy as np
+    import pandas as pd
+    from pyDOE3 import lhs
 
-    # --- User Input: Target Settings ---
+    # === 1️⃣ Load your trained surrogate models ===
+    @st.cache_resource
+    def load_models():
+        models = {
+            "cooling": joblib.load("RF_Cooling_kWh_model.pkl"),
+            "lighting": joblib.load("XGB_Lighting_kWh_model.pkl"),
+            "room": joblib.load("LR_Room_kWh_model.pkl"),
+        }
+        return models
+
+    models = load_models()
+
+    # === 2️⃣ Generate random retrofit combinations (LHS sampling) ===
+    n_samples = 500
+    n_vars = 8
+    LHS = lhs(n_vars, samples=n_samples)
+
+    data = pd.DataFrame({
+        "Glazing": np.where(LHS[:,0] < 0.33, "Single",
+                     np.where(LHS[:,0] < 0.66, "Double", "LowE")),
+        "Insulation": np.where(LHS[:,1] < 0.5, "Med", "High"),
+        "LPD_Wm2": 8 + LHS[:,2] * (12 - 8),
+        "HVAC_Setpoint_C": 24 + LHS[:,3] * (27 - 24),
+        "ShadingDepth_m": LHS[:,4] * 1.0,
+        "ScheduleAdj": np.where(LHS[:,5] < 0.5, "Base", "Tight"),
+        "LinearControl": np.where(LHS[:,6] < 0.5, "No", "Yes"),
+        "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Yes"),
+    })
+
+    # === 3️⃣ Predict performance using surrogate models ===
+    # You can customize this depending on your trained outputs
+    data["Cooling_kWh"] = models["cooling"].predict(data[models["cooling"].feature_names_in_])
+    data["Lighting_kWh"] = models["lighting"].predict(data[models["lighting"].feature_names_in_])
+    data["Room_kWh"] = models["room"].predict(data[models["room"].feature_names_in_])
+
+    data["Total_kWh"] = data["Cooling_kWh"] + data["Lighting_kWh"] + data["Room_kWh"]
+
+    # Example baseline value — replace with your actual baseline
+    baseline_energy = 200000
+    baseline_cost = 0.35  # SGD/kWh
+    baseline_capex = 0
+
+    data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
+    data["Retrofit Cost (SGD)"] = (
+        200 * (data["Glazing"] != "Single") +
+        45 * (data["Insulation"] == "High") +
+        20 * (12 - data["LPD_Wm2"]) +
+        100 * (data["ShadingDepth_m"]) +
+        30 * (data["LinearControl"] == "Yes") +
+        15 * (data["HighAlbedoWall"] == "Yes")
+    )
+    data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * baseline_cost
+    data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
+
+    # === 4️⃣ User target inputs ===
     st.markdown("### 🎯 Set Your Targets")
     col1, col2 = st.columns(2)
     target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
     max_payback = col2.slider("Maximum Payback (years)", 1, 12, 6, step=1)
 
-    # --- Filter Feasible Options ---
-    feasible = df_display[
-        (df_display["Energy Saving (%)"] >= target_saving) &
-        (df_display["Payback (yrs)"] <= max_payback)
+    feasible = data[
+        (data["Energy Saving (%)"] >= target_saving) &
+        (data["Payback (yrs)"] <= max_payback)
     ]
 
-    st.markdown("### 📊 Pareto Front (Energy vs Payback)")
-    # --- Compute Pareto Front ---
+    # === 5️⃣ Pareto front function ===
     def pareto_front(df, x_col, y_col):
         points = df[[x_col, y_col]].values
         is_dominated = np.zeros(len(points), dtype=bool)
@@ -492,61 +540,52 @@ with tabs[4]:
                 is_dominated[i] = True
         return df[~is_dominated]
 
-    pareto_df = pareto_front(df_display, "Energy Saving (%)", "Payback (yrs)")
+    pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)")
 
-    # --- Plot Pareto Front ---
+    # === 6️⃣ Plot Pareto front ===
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=df_display["Energy Saving (%)"],
-        y=df_display["Payback (yrs)"],
-        mode="markers",
-        name="All Cases",
-        marker=dict(color="#c4c3e3", size=8, opacity=0.5)
+        x=data["Energy Saving (%)"], y=data["Payback (yrs)"],
+        mode="markers", name="All Predictions",
+        marker=dict(color="#c4c3e3", size=7, opacity=0.5)
     ))
     fig.add_trace(go.Scatter(
-        x=pareto_df["Energy Saving (%)"],
-        y=pareto_df["Payback (yrs)"],
-        mode="lines+markers",
-        name="Pareto Front",
-        line=dict(color="#a3b565", width=3),
-        marker=dict(size=9, color="#a3b565")
+        x=pareto_df["Energy Saving (%)"], y=pareto_df["Payback (yrs)"],
+        mode="lines+markers", name="Pareto Front",
+        line=dict(color="#a3b565", width=3)
     ))
     if not feasible.empty:
         fig.add_trace(go.Scatter(
-            x=feasible["Energy Saving (%)"],
-            y=feasible["Payback (yrs)"],
-            mode="markers",
-            name="Feasible Solutions",
+            x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
+            mode="markers", name="Feasible Solutions",
             marker=dict(color="#504e76", size=10, symbol="star")
         ))
 
     fig.update_yaxes(autorange="reversed", title="Payback (years)")
     fig.update_xaxes(title="Energy Saving (%)")
     fig.update_layout(
-        title="Energy–Economic Trade-off Map",
+        title="Model-Predicted Trade-off Frontier",
         font=dict(color="#243C2C"),
-        legend=dict(orientation="h", y=-0.2),
+        legend=dict(orientation="h", y=-0.25),
         height=450
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- Display Feasible Results ---
+    # === 7️⃣ Show feasible results ===
     if not feasible.empty:
-        st.success(f"{len(feasible)} feasible retrofit option(s) found matching your targets.")
-        display_cols = [
-            col for col in feasible.columns if col not in ["Case_ID"]
-        ]
-        st.dataframe(feasible[display_cols].sort_values(by="Payback (yrs)"), use_container_width=True)
+        st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
+        show_cols = ["Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
+                     "ShadingDepth_m","ScheduleAdj","LinearControl","HighAlbedoWall",
+                     "Energy Saving (%)","Payback (yrs)"]
+        st.dataframe(feasible[show_cols].sort_values(by="Payback (yrs)"), use_container_width=True)
     else:
-        st.warning("No retrofit combination meets your targets. Try adjusting thresholds.")
+        st.warning("No combination meets your targets. Try adjusting thresholds.")
 
-    # --- Summary Guidance ---
+    # === 8️⃣ Guidance ===
     st.markdown("""
     <div style='background-color:#eef6fb; padding:15px; border-radius:8px;'>
-        Based on your selected targets, the highlighted points on the Pareto Front
-        represent retrofit strategies that deliver the best balance between
-        energy performance and economic return.<br><br>
-        Adjust the sliders to explore how relaxing or tightening your goals
-        changes the feasible set of retrofit options.
+        This chart and table are generated using your trained surrogate models.<br>
+        The Pareto front shows the optimal trade-offs between energy performance and economic return.<br><br>
+        Adjust the sliders to explore how different savings or payback targets change the feasible retrofit combinations.
     </div>
     """, unsafe_allow_html=True)
