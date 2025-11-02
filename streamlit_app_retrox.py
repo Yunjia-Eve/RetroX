@@ -482,6 +482,7 @@ with tabs[4]:
     import numpy as np
     import pandas as pd
     import plotly.graph_objects as go
+    import plotly.express as px
 
     # === 1️⃣ Load trained surrogate models ===
     @st.cache_resource
@@ -512,8 +513,6 @@ with tabs[4]:
 
     # === 3️⃣ Encode + predict with surrogate models ===
     data_encoded = pd.get_dummies(data, drop_first=False)
-
-    # Fill any missing dummy columns (safe alignment)
     for model in models.values():
         for col in model.feature_names_in_:
             if col not in data_encoded.columns:
@@ -539,8 +538,6 @@ with tabs[4]:
 
     # === 4️⃣ Economic calculations (dynamic unit rates from sidebar) ===
     baseline_energy = BASELINE["Total_kWh"]
-    
-    # use global inputs from sidebar
     data["Retrofit Cost (SGD)"] = (
         (data["Glazing"] == "Double") * glazing_cost_double * WinA +
         (data["Glazing"] == "LowE") * glazing_cost_lowe * WinA +
@@ -552,12 +549,9 @@ with tabs[4]:
         (data["LinearControl"] == "Yes") * linearctrl_cost * GFA +
         (data["HighAlbedoWall"] == "Cool") * albedo_cost * total_wall_roof
     )
-    
     data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
     data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * tariff
     data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
-
-
 
     # === 5️⃣ Compute global Pareto front ===
     def pareto_front(df, x_col, y_col):
@@ -573,144 +567,174 @@ with tabs[4]:
 
     pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)").sort_values("Energy Saving (%)")
 
-    # === 6️⃣ User target sliders ===
-    st.markdown("### Set Your Targets")
-    col1, col2 = st.columns(2)
-    target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
-    max_payback = col2.slider("Maximum Payback (years)", 1, 12, 6, step=1)
-
-    feasible = data[
-        (data["Energy Saving (%)"] >= target_saving) &
-        (data["Payback (yrs)"] <= max_payback)
-    ].copy()
-
-    # === 7️⃣ Plot chart ===
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=data["Energy Saving (%)"], y=data["Payback (yrs)"],
-        mode="markers", name="All Predictions",
-        marker=dict(color="#c4c3e3", size=7, opacity=0.5)
-    ))
-    fig.add_trace(go.Scatter(
-        x=pareto_df["Energy Saving (%)"], y=pareto_df["Payback (yrs)"],
-        mode="lines+markers", name="Pareto Front",
-        line=dict(color="#7A9544", width=3)
-    ))
-
-    if not feasible.empty:
-        feasible = feasible.reset_index(drop=True)
-        feasible["Case_ID"] = feasible.index + 1
-
-        fig.add_trace(go.Scatter(
-            x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
-            mode="markers", name="Feasible Solutions",
-            marker=dict(color="#504e76", size=8)
-        ))
-
-        best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).iloc[0]
-        fig.add_trace(go.Scatter(
-            x=[best_case["Energy Saving (%)"]], y=[best_case["Payback (yrs)"]],
-            mode="markers", name="Best Feasible Option",
-            marker=dict(color="#f1642e", size=11, line=dict(color="white", width=1))
-        ))
-
-    fig.update_yaxes(autorange="reversed", title="Payback (years)")
-    fig.update_xaxes(title="Energy Saving (%)")
-    fig.update_layout(
-        title="Model-Predicted Trade-off Frontier",
-        font=dict(color="#243C2C"),
-        legend=dict(orientation="h", y=-0.25),
-        height=450
+    # === 6️⃣ Visualization selector ===
+    trade_type = st.selectbox(
+        "Choose Visualization",
+        ["Pareto Front", "2D Contour", "Cluster Explorer"]
     )
-    st.plotly_chart(fig, use_container_width=True)
 
     # -----------------------------------------------------
-    # 🔍 Cluster Exploration Section (Interactive Visualization)
+    # 7️⃣ Visualization: Pareto Front
     # -----------------------------------------------------
-    st.markdown("### Explore Measure Influence in Clusters")
-    st.caption("Select a retrofit measure to see how its values distribute across the trade-off space.")
-    
-    # --- Dropdown for measure selection ---
-    measure_choice = st.selectbox(
-        "Select a measure to visualize:",
-        ["HVAC_Setpoint_C", "ScheduleAdj", "Glazing", "Insulation", "LinearControl", "HighAlbedoWall"]
-    )
-    
-    # --- Automatically choose color scale type ---
-    if measure_choice in ["HVAC_Setpoint_C", "LPD_Wm2", "ShadingDepth_m"]:
-        # Continuous variable → gradient
-        fig_cluster = px.scatter(
-            data,
-            x="Energy Saving (%)",
-            y="Payback (yrs)",
-            color=measure_choice,
-            color_continuous_scale="Viridis",
-            title=f"Cluster Distribution by {measure_choice}",
+    if trade_type == "Pareto Front":
+        col1, col2 = st.columns(2)
+        target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
+        max_payback = col2.slider("Maximum Payback (years)", 1, 12, 6, step=1)
+
+        feasible = data[
+            (data["Energy Saving (%)"] >= target_saving) &
+            (data["Payback (yrs)"] <= max_payback)
+        ].copy()
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=data["Energy Saving (%)"], y=data["Payback (yrs)"],
+            mode="markers", name="All Predictions",
+            marker=dict(color="#c4c3e3", size=7, opacity=0.5)
+        ))
+        fig.add_trace(go.Scatter(
+            x=pareto_df["Energy Saving (%)"], y=pareto_df["Payback (yrs)"],
+            mode="lines+markers", name="Pareto Front",
+            line=dict(color="#7A9544", width=3)
+        ))
+
+        if not feasible.empty:
+            feasible = feasible.reset_index(drop=True)
+            feasible["Case_ID"] = feasible.index + 1
+            fig.add_trace(go.Scatter(
+                x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
+                mode="markers", name="Feasible Solutions",
+                marker=dict(color="#504e76", size=8)
+            ))
+            best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).iloc[0]
+            fig.add_trace(go.Scatter(
+                x=[best_case["Energy Saving (%)"]], y=[best_case["Payback (yrs)"]],
+                mode="markers", name="Best Feasible Option",
+                marker=dict(color="#f1642e", size=11, line=dict(color="white", width=1))
+            ))
+
+        fig.update_yaxes(autorange="reversed", title="Payback (years)")
+        fig.update_xaxes(title="Energy Saving (%)")
+        fig.update_layout(
+            title="Model-Predicted Trade-off Frontier",
+            font=dict(color="#243C2C"),
+            legend=dict(orientation="h", y=-0.25),
+            height=450
         )
-    else:
-        # Categorical variable → discrete palette
-        fig_cluster = px.scatter(
-            data,
-            x="Energy Saving (%)",
-            y="Payback (yrs)",
-            color=measure_choice,
-            color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
-            title=f"Cluster Distribution by {measure_choice}",
+        st.plotly_chart(fig, use_container_width=True)
+
+    # -----------------------------------------------------
+    # 8️⃣ Visualization: 2D Contour Map
+    # -----------------------------------------------------
+    elif trade_type == "2D Contour":
+        kpi_choice = st.selectbox(
+            "Select KPI to visualize:",
+            ["EUI (kWh/m²·yr)", "Energy Saving (%)", "Payback (yrs)"],
+            index=0
         )
-    
-    # --- Refine layout ---
-    fig_cluster.update_yaxes(autorange="reversed", title="Payback (years)")
-    fig_cluster.update_xaxes(title="Energy Saving (%)")
-    fig_cluster.update_layout(
-        height=500,
-        font=dict(color="#243C2C"),
-        legend=dict(orientation="h", y=-0.25),
-    )
-    
-    st.plotly_chart(fig_cluster, use_container_width=True)
-    
-    # --- Explanation ---
+        x_measure = st.selectbox(
+            "Select first measure (X-axis):",
+            ["LPD_Wm2", "HVAC_Setpoint_C", "ShadingDepth_m"],
+            index=0
+        )
+        y_measure = st.selectbox(
+            "Select second measure (Y-axis):",
+            ["HVAC_Setpoint_C", "LPD_Wm2", "ShadingDepth_m"],
+            index=1
+        )
+
+        if x_measure == y_measure:
+            st.warning("Please select two different measures.")
+        else:
+            grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 25)
+            grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 25)
+            X, Y = np.meshgrid(grid_x, grid_y)
+
+            fixed_values = {
+                "Glazing": "Double", "Insulation": "Med", "ScheduleAdj": "Base",
+                "LinearControl": "No", "HighAlbedoWall": "Base"
+            }
+
+            contour_df = pd.DataFrame({
+                x_measure: X.flatten(),
+                y_measure: Y.flatten(),
+                **fixed_values
+            })
+
+            for m in ["LPD_Wm2", "HVAC_Setpoint_C", "ShadingDepth_m"]:
+                if m not in [x_measure, y_measure]:
+                    contour_df[m] = data[m].mean()
+
+            contour_encoded = pd.get_dummies(contour_df, drop_first=False)
+            for model in models.values():
+                for col in model.feature_names_in_:
+                    if col not in contour_encoded.columns:
+                        contour_encoded[col] = 0
+
+            contour_df["Cooling_kWh"] = models["cooling"].predict(contour_encoded[models["cooling"].feature_names_in_])
+            contour_df["Lighting_kWh"] = models["lighting"].predict(contour_encoded[models["lighting"].feature_names_in_])
+            contour_df["Total_kWh"] = contour_df["Cooling_kWh"] + contour_df["Lighting_kWh"]
+
+            baseline_energy = BASELINE["Total_kWh"]
+            tariff = 0.35
+            GFA = 1000
+
+            contour_df["EUI (kWh/m²·yr)"] = contour_df["Total_kWh"] / GFA
+            contour_df["Energy Saving (%)"] = (1 - contour_df["Total_kWh"] / baseline_energy) * 100
+            contour_df["Payback (yrs)"] = 50000 / ((baseline_energy - contour_df["Total_kWh"]) * tariff)
+
+            Z = contour_df[kpi_choice].values.reshape(X.shape)
+
+            fig_contour = go.Figure(data=go.Contour(
+                z=Z, x=grid_x, y=grid_y,
+                colorscale=[[0, "#c4c3e3"], [0.5, "#fcdd9d"], [1, "#a3b565"]],
+                contours=dict(showlabels=True, labelfont=dict(size=10, color="black")),
+                colorbar=dict(title=kpi_choice),
+            ))
+            fig_contour.update_layout(
+                title=f"Iso-performance Map of {kpi_choice}<br>({x_measure} vs {y_measure})",
+                xaxis_title=x_measure, yaxis_title=y_measure,
+                font=dict(color="#243C2C"), height=500
+            )
+            st.plotly_chart(fig_contour, use_container_width=True)
+
+    # -----------------------------------------------------
+    # 9️⃣ Visualization: Cluster Explorer
+    # -----------------------------------------------------
+    elif trade_type == "Cluster Explorer":
+        measure_choice = st.selectbox(
+            "Select a measure to visualize:",
+            ["HVAC_Setpoint_C", "ScheduleAdj", "Glazing", "Insulation", "LinearControl", "HighAlbedoWall"]
+        )
+        if measure_choice in ["HVAC_Setpoint_C", "LPD_Wm2", "ShadingDepth_m"]:
+            fig_cluster = px.scatter(
+                data, x="Energy Saving (%)", y="Payback (yrs)",
+                color=measure_choice, color_continuous_scale="Viridis",
+                title=f"Cluster Distribution by {measure_choice}",
+            )
+        else:
+            fig_cluster = px.scatter(
+                data, x="Energy Saving (%)", y="Payback (yrs)",
+                color=measure_choice,
+                color_discrete_sequence=["#a3b565", "#fcdd9d", "#c4c3e3", "#504e76"],
+                title=f"Cluster Distribution by {measure_choice}",
+            )
+
+        fig_cluster.update_yaxes(autorange="reversed", title="Payback (years)")
+        fig_cluster.update_xaxes(title="Energy Saving (%)")
+        fig_cluster.update_layout(height=500, font=dict(color="#243C2C"), legend=dict(orientation="h", y=-0.25))
+        st.plotly_chart(fig_cluster, use_container_width=True)
+
+    # -----------------------------------------------------
+    # 🔟 Guidance Box
+    # -----------------------------------------------------
     st.markdown("""
     <div style='background-color:#eef6fb; padding:15px; border-radius:8px; font-size:15px;'>
-    Each point represents one retrofit combination.<br>
-    The colors show how the selected measure varies across the clusters, helping identify which factors drive distinct retrofit regimes.
-    </div>
-    """, unsafe_allow_html=True)
-
-    
-    # === 8️⃣ Display feasible results ===
-    if not feasible.empty:
-        st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
-        show_cols = ["Case_ID","Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
-                     "ShadingDepth_m","ScheduleAdj","LinearControl","HighAlbedoWall",
-                     "Energy Saving (%)","Payback (yrs)"]
-        st.dataframe(feasible[show_cols].sort_values(by="Payback (yrs)"), use_container_width=True)
-
-        combo_info = f"""
-        <p style='color:#f1642e; font-weight:bold; font-size:16px;'>
-            Best Feasible Option – Case {int(best_case["Case_ID"])}<br>
-            Glazing: {best_case["Glazing"]} &nbsp;|&nbsp;
-            Insulation: {best_case["Insulation"]} &nbsp;|&nbsp;
-            LPD: {best_case["LPD_Wm2"]:.1f} W/m² &nbsp;|&nbsp;
-            HVAC: {best_case["HVAC_Setpoint_C"]:.1f} °C &nbsp;|&nbsp;
-            Shading: {best_case["ShadingDepth_m"]:.2f} m<br>
-            Schedule: {best_case["ScheduleAdj"]} &nbsp;|&nbsp;
-            Linear Control: {best_case["LinearControl"]} &nbsp;|&nbsp;
-            Albedo: {best_case["HighAlbedoWall"]}<br>
-            Energy Saving: {best_case["Energy Saving (%)"]:.1f}% &nbsp;|&nbsp;
-            Payback: {best_case["Payback (yrs)"]:.1f} years
-        </p>
-        """
-        st.markdown(combo_info, unsafe_allow_html=True)
-    else:
-        st.warning("No combination meets your targets. Try adjusting thresholds.")
-
-    # === 9️⃣ Guidance ===
-    st.markdown("""
-    <div style='background-color:#eef6fb; padding:15px; border-radius:8px; font-size:15px;'>
-        <span style='color:#7A9544; font-weight:bold;'>Pareto front</span> shows globally optimal trade-offs between energy savings and payback.<br>
-        <span style='color:#504e76; font-weight:bold;'>Feasible solutions</span> update dynamically with your targets.<br>
-        <span style='color:#f1642e; font-weight:bold;'>Best feasible option</span> achieves the highest savings within your limits and is detailed above.
+        <span style='color:#7A9544; font-weight:bold;'>Pareto Front</span>: globally optimal trade-offs.<br>
+        <span style='color:#504e76; font-weight:bold;'>Feasible Solutions</span>: update with user targets.<br>
+        <span style='color:#f1642e; font-weight:bold;'>Best Feasible Option</span>: highest savings within limits.<br>
+        <span style='color:#243C2C; font-weight:bold;'>2D Contour</span>: explore KPI sensitivity across two measures.<br>
+        <span style='color:#c4c3e3; font-weight:bold;'>Cluster Explorer</span>: visualize how a selected measure distributes in the trade-off space.
     </div>
     """, unsafe_allow_html=True)
 
