@@ -492,16 +492,16 @@ with tabs[4]:
             "lighting": joblib.load("XGB_Lighting_kWh_model.pkl")
         }
         return models
-
+    
     models = load_models()
 
     # === 2️⃣ Generate random retrofit combinations (cached, fixed seed) ===
     @st.cache_resource
-    def generate_dataset(models):
+    def generate_dataset():
         np.random.seed(42)
         n_samples = 500
         LHS = np.random.rand(n_samples, 8)
-
+    
         data = pd.DataFrame({
             "Glazing": np.where(LHS[:,0] < 0.33, "Single",
                          np.where(LHS[:,0] < 0.66, "Double", "LowE")),
@@ -513,49 +513,13 @@ with tabs[4]:
             "LinearControl": np.where(LHS[:,6] < 0.5, "No", "Yes"),
             "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Cool")
         })
-
-        # --- Predict energy using surrogate models ---
-        data["Cooling_kWh"] = models["cooling"].predict(data[models["cooling"].feature_names_in_])
-        data["Lighting_kWh"] = models["lighting"].predict(data[models["lighting"].feature_names_in_])
-
-        # --- Room electricity fixed by insulation & albedo ---
-        room_lookup = {
-            ("Low", "Base"): 31598.3,
-            ("Low", "Cool"): 31556.6,
-            ("Med", "Base"): 31452.5,
-            ("Med", "Cool"): 31410.9,
-            ("High", "Base"): 31203.0,
-            ("High", "Cool"): 31161.4
-        }
-        data["Room_kWh"] = data.apply(lambda r: room_lookup[(r["Insulation"], r["HighAlbedoWall"])], axis=1)
-        data["Total_kWh"] = data["Cooling_kWh"] + data["Lighting_kWh"] + data["Room_kWh"]
-
-        # --- Retrofit cost (same logic as main toolkit) ---
-        WinA = 214.15
-        RoofA, WallA, GFA = 939.62, 397.7, 939.62
-        total_wall_roof = RoofA + WallA
-
-        glazing_cost_double, glazing_cost_lowe = 200, 300
-        insul_cost_med, insul_cost_high = 45, 55
-        shading_cost, led_cost, hvac_cost = 120, 25, 2000
-        albedo_cost, schedule_cost, linearctrl_cost = 25, 2000, 30
-
-        data["Retrofit Cost (SGD)"] = (
-            np.where(data["Glazing"] == "Double", glazing_cost_double * WinA,
-            np.where(data["Glazing"] == "LowE", glazing_cost_lowe * WinA, 0)) +
-            np.where(data["Insulation"] == "Med", insul_cost_med * total_wall_roof,
-            np.where(data["Insulation"] == "High", insul_cost_high * total_wall_roof, 0)) +
-            np.where(data["ShadingDepth_m"] > 0, shading_cost * WinA, 0) +
-            np.where(data["LPD_Wm2"] < 10, led_cost * GFA, 0) +
-            np.where(data["HVAC_Setpoint_C"] > 24, hvac_cost, 0) +
-            np.where(data["HighAlbedoWall"] == "Cool", albedo_cost * total_wall_roof, 0) +
-            np.where(data["ScheduleAdj"] == "Tight", schedule_cost, 0) +
-            np.where(data["LinearControl"] == "Yes", linearctrl_cost * GFA, 0)
-        )
-
         return data
-
-    data = generate_dataset(models)
+    
+    data = generate_dataset()
+   
+    # --- Predict energy using surrogate models ---
+    data["Cooling_kWh"] = models["cooling"].predict(data[models["cooling"].feature_names_in_])
+    data["Lighting_kWh"] = models["lighting"].predict(data[models["lighting"].feature_names_in_])
 
     # === 3️⃣ Calculate energy & payback ===
     baseline_energy = BASELINE["Total_kWh"]
