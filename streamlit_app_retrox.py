@@ -547,6 +547,7 @@ with tabs[4]:
         (data["HighAlbedoWall"] == "Cool") * albedo_cost * total_wall_roof
     )
     data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
+    data["EUI (kWh/m²·yr)"] = data["Total_kWh"] / GFA
     data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * tariff
     data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
 
@@ -618,7 +619,7 @@ with tabs[4]:
             st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
             show_cols = ["Case_ID","Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
                          "ShadingDepth_m","ScheduleAdj","LinearControl","HighAlbedoWall",
-                         "Energy Saving (%)","Payback (yrs)"]
+                         "Energy Saving (%)","EUI (kWh/m²·yr)","Payback (yrs)"]
             st.dataframe(feasible[show_cols].sort_values(by="Payback (yrs)"), use_container_width=True)
 
             combo_info = f"""
@@ -633,6 +634,7 @@ with tabs[4]:
                 Linear Control: {best_case["LinearControl"]} &nbsp;|&nbsp;
                 Albedo: {best_case["HighAlbedoWall"]}<br>
                 Energy Saving: {best_case["Energy Saving (%)"]:.1f}% &nbsp;|&nbsp;
+                EUI: {best_case["EUI (kWh/m²·yr)"]:.1f} &nbsp;|&nbsp;
                 Payback: {best_case["Payback (yrs)"]:.1f} years
             </p>
             """
@@ -668,15 +670,17 @@ with tabs[4]:
     # === 8️⃣ 2D Contour Mode ===
     elif trade_type == "2D Contour":
         st.markdown("### 🌈 2D Contour Analysis")
-        kpi_choice = st.selectbox("Select KPI:", ["Energy Saving (%)", "Payback (yrs)"])
-        x_measure = st.selectbox("X-axis measure:", ["LPD_Wm2", "HVAC_Setpoint_C", "ShadingDepth_m"], index=0)
-        y_measure = st.selectbox("Y-axis measure:", ["HVAC_Setpoint_C", "ShadingDepth_m", "LPD_Wm2"], index=1)
+        kpi_choice = st.selectbox("Select KPI:", ["Energy Saving (%)", "EUI (kWh/m²·yr)", "Payback (yrs)"])
+        x_measure = st.selectbox("X-axis measure:", 
+            ["HVAC_Setpoint_C", "LPD_Wm2", "ShadingDepth_m", "ScheduleAdj", "Glazing", "Insulation", "LinearControl", "HighAlbedoWall"], index=0)
+        y_measure = st.selectbox("Y-axis measure:", 
+            ["HVAC_Setpoint_C", "LPD_Wm2", "ShadingDepth_m", "ScheduleAdj", "Glazing", "Insulation", "LinearControl", "HighAlbedoWall"], index=1)
 
         if x_measure == y_measure:
             st.warning("Please select two different measures.")
         else:
-            grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30)
-            grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30)
+            grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if data[x_measure].dtype != 'object' else np.unique(data[x_measure])
+            grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if data[y_measure].dtype != 'object' else np.unique(data[y_measure])
             X, Y = np.meshgrid(grid_x, grid_y)
 
             fixed_values = {"Glazing": "LowE", "Insulation": "High", "ScheduleAdj": "Base", 
@@ -701,15 +705,22 @@ with tabs[4]:
             contour_df["Cooling_kWh"] = models["cooling"].predict(contour_encoded[models["cooling"].feature_names_in_])
             contour_df["Lighting_kWh"] = models["lighting"].predict(contour_encoded[models["lighting"].feature_names_in_])
             contour_df["Total_kWh"] = contour_df["Cooling_kWh"] + contour_df["Lighting_kWh"]
-
+            contour_df["EUI (kWh/m²·yr)"] = contour_df["Total_kWh"] / GFA
             contour_df["Energy Saving (%)"] = (1 - contour_df["Total_kWh"] / baseline_energy) * 100
             contour_df["Payback (yrs)"] = 50000 / ((baseline_energy - contour_df["Total_kWh"]) * tariff)
 
             Z = contour_df[kpi_choice].values.reshape(X.shape)
 
+            # Color logic
+            if (data[x_measure].dtype != 'object') and (data[y_measure].dtype != 'object'):
+                colorscale = [[0, "#a3b565"], [0.5, "#fcdd9d"], [1, "#c4c3e3"]]
+            else:
+                colorscale = [[0, "#E0D1E6"], [0.2, "#DBC7E0"], [0.4, "#CFB6D6"], 
+                              [0.6, "#AF93BB"], [0.8, "#9C83A3"], [1, "#897191"]]
+
             fig_contour = go.Figure(data=go.Contour(
                 z=Z, x=grid_x, y=grid_y,
-                colorscale=[[0, "#c4c3e3"], [0.5, "#fcdd9d"], [1, "#a3b565"]],
+                colorscale=colorscale,
                 contours=dict(showlabels=True, labelfont=dict(size=10, color="black")),
                 colorbar=dict(title=kpi_choice),
             ))
