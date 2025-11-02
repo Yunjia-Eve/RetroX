@@ -537,22 +537,31 @@ with tabs[4]:
     # Total energy
     data["Total_kWh"] = data["Cooling_kWh"] + data["Lighting_kWh"] + data["Room_kWh"]
 
-    # === 4️⃣ Economic calculations (consistent with toolkit) ===
+    # === 4️⃣ Economic calculations (consistent with main toolkit) ===
     tariff = 0.35
     baseline_energy = BASELINE["Total_kWh"]
-
+    
+    # Use same areas as defined in main script
+    GFA = 939.62
+    RoofA, WallA, WinA = 939.62, 397.7, 214.15
+    total_wall_roof = RoofA + WallA
+    
     data["Retrofit Cost (SGD)"] = (
-        200 * (data["Glazing"] != "Single") +
-        45 * (data["Insulation"] == "High") +
-        20 * (12 - data["LPD_Wm2"]) +
-        100 * (data["ShadingDepth_m"]) +
-        30 * (data["LinearControl"] == "Yes") +
-        15 * (data["HighAlbedoWall"] == "Cool")
+        (data["Glazing"] == "Double") * 200 * WinA +
+        (data["Glazing"] == "LowE") * 300 * WinA +
+        (data["Insulation"] == "Med") * 45 * total_wall_roof +
+        (data["Insulation"] == "High") * 55 * total_wall_roof +
+        (12 - data["LPD_Wm2"]) * 25 * GFA +
+        (data["HVAC_Setpoint_C"] > 24) * 2000 +
+        (data["ShadingDepth_m"]) * 120 * WinA +
+        (data["LinearControl"] == "Yes") * 30 * GFA +
+        (data["HighAlbedoWall"] == "Cool") * 25 * total_wall_roof
     )
-
+    
     data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
     data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * tariff
     data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
+
 
     # === 5️⃣ Compute global Pareto front ===
     def pareto_front(df, x_col, y_col):
