@@ -601,17 +601,22 @@ with tabs[4]:
     ))
 
     if not feasible.empty:
-        fig.add_trace(go.Scatter(
-            x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
-            mode="markers", name="Feasible Solutions",
-            marker=dict(color="#504e76", size=8)
-        ))
-        best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).head(1).iloc[0]
-        fig.add_trace(go.Scatter(
-            x=[best_case["Energy Saving (%)"]], y=[best_case["Payback (yrs)"]],
-            mode="markers", name="Best Feasible Option",
-            marker=dict(color="#f1642e", size=11, line=dict(color="white", width=1))
-        ))
+    feasible = feasible.reset_index(drop=True)
+    feasible["Case_ID"] = feasible.index + 1  # ✅ add before selecting best_case
+
+    fig.add_trace(go.Scatter(
+        x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
+        mode="markers", name="Feasible Solutions",
+        marker=dict(color="#504e76", size=8)
+    ))
+
+    best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).head(1).iloc[0]
+    fig.add_trace(go.Scatter(
+        x=[best_case["Energy Saving (%)"]], y=[best_case["Payback (yrs)"]],
+        mode="markers", name="Best Feasible Option",
+        marker=dict(color="#f1642e", size=11, line=dict(color="white", width=1))
+    ))
+
 
     fig.update_yaxes(autorange="reversed", title="Payback (years)")
     fig.update_xaxes(title="Energy Saving (%)")
