@@ -568,7 +568,7 @@ with tabs[4]:
 
     # === 7️⃣ Pareto Front Mode ===
     if trade_type == "Pareto Front":
-        st.markdown("### 🎯 Set Your Targets")
+        st.markdown("### Set Your Targets")
         col1, col2 = st.columns(2)
         target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
         max_payback = col2.slider("Maximum Payback (years)", 1, 12, 6, step=1)
@@ -643,7 +643,7 @@ with tabs[4]:
             st.warning("No combination meets your targets. Try adjusting thresholds.")
 
         # --- Cluster Explorer (only for Pareto) ---
-        st.markdown("### 🔍 Cluster Explorer")
+        st.markdown("### Cluster Explorer")
         st.caption("Explore how each measure distributes across the trade-off space.")
         measure_choice = st.selectbox(
             "Select a measure to visualize:",
