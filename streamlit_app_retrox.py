@@ -474,8 +474,7 @@ with tabs[3]:
 # -----------------------------------------------------
 # ⚖️ Trade-off Explorer Tab (Model-Driven Optimization)
 # -----------------------------------------------------
-with tabs[4]:
-    st.subheader("Trade-off Explorer")
+with tabs[4]:    
     st.caption("Use surrogate models to explore energy–economic trade-offs and find retrofit combinations meeting your targets.")
 
     import joblib
