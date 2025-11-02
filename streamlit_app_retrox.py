@@ -494,45 +494,39 @@ with tabs[4]:
 
     models = load_models()
 
-    # === 2️⃣ Generate random retrofit combinations (cached) ===
-    @st.cache_data
-    def generate_dataset():
-        np.random.seed(42)
-        n_samples = 500
-        LHS = np.random.rand(n_samples, 8)
-        data = pd.DataFrame({
-            "Glazing": np.where(LHS[:,0] < 0.33, "Single",
-                         np.where(LHS[:,0] < 0.66, "Double", "LowE")),
-            "Insulation": np.where(LHS[:,1] < 0.5, "Med", "High"),
-            "LPD_Wm2": 8 + LHS[:,2] * (12 - 8),
-            "HVAC_Setpoint_C": 24 + LHS[:,3] * (27 - 24),
-            "ShadingDepth_m": LHS[:,4] * 1.0,
-            "ScheduleAdj": np.where(LHS[:,5] < 0.5, "Base", "Tight"),
-            "LinearControl": np.where(LHS[:,6] < 0.5, "No", "Yes"),
-            "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Cool")
-        })
-        return data
+    # === 2️⃣ Generate random retrofit combinations (once, reproducible) ===
+    np.random.seed(42)
+    n_samples = 500
+    LHS = np.random.rand(n_samples, 8)
+    data = pd.DataFrame({
+        "Glazing": np.where(LHS[:,0] < 0.33, "Single",
+                     np.where(LHS[:,0] < 0.66, "Double", "LowE")),
+        "Insulation": np.where(LHS[:,1] < 0.5, "Med", "High"),
+        "LPD_Wm2": 8 + LHS[:,2] * (12 - 8),
+        "HVAC_Setpoint_C": 24 + LHS[:,3] * (27 - 24),
+        "ShadingDepth_m": LHS[:,4] * 1.0,
+        "ScheduleAdj": np.where(LHS[:,5] < 0.5, "Base", "Tight"),
+        "LinearControl": np.where(LHS[:,6] < 0.5, "No", "Yes"),
+        "HighAlbedoWall": np.where(LHS[:,7] < 0.5, "Base", "Cool")
+    })
 
-    data = generate_dataset()
-
-    # === 3️⃣ Predict using surrogate models ===
-    # One-hot encode categories
+    # === 3️⃣ Encode + predict with surrogate models ===
     data_encoded = pd.get_dummies(data, drop_first=False)
 
-    # Align model inputs
-    for col in models["cooling"].feature_names_in_:
-        if col not in data_encoded.columns:
-            data_encoded[col] = 0
-    for col in models["lighting"].feature_names_in_:
-        if col not in data_encoded.columns:
-            data_encoded[col] = 0
+    # Fill any missing dummy columns (safe alignment)
+    for model in models.values():
+        for col in model.feature_names_in_:
+            if col not in data_encoded.columns:
+                data_encoded[col] = 0
 
-    # Predict
+    # Predictions
     data["Cooling_kWh"] = models["cooling"].predict(data_encoded[models["cooling"].feature_names_in_])
     data["Lighting_kWh"] = models["lighting"].predict(data_encoded[models["lighting"].feature_names_in_])
 
-    # Room energy (fixed by insulation & albedo)
+    # Room electricity (fixed by insulation & albedo)
     room_lookup = {
+        ("Low", "Base"): 31598.3,
+        ("Low", "Cool"): 31556.6,
         ("Med", "Base"): 31452.5,
         ("Med", "Cool"): 31410.9,
         ("High", "Base"): 31203.0,
@@ -543,11 +537,10 @@ with tabs[4]:
     # Total energy
     data["Total_kWh"] = data["Cooling_kWh"] + data["Lighting_kWh"] + data["Room_kWh"]
 
-    # === 4️⃣ Economic calculation (same as Cost tab logic) ===
+    # === 4️⃣ Economic calculations (consistent with toolkit) ===
     tariff = 0.35
     baseline_energy = BASELINE["Total_kWh"]
 
-    # Retrofit cost formula (consistent)
     data["Retrofit Cost (SGD)"] = (
         200 * (data["Glazing"] != "Single") +
         45 * (data["Insulation"] == "High") +
@@ -557,12 +550,11 @@ with tabs[4]:
         15 * (data["HighAlbedoWall"] == "Cool")
     )
 
-    # Energy saving, annual saving, payback
     data["Energy Saving (%)"] = (1 - data["Total_kWh"] / baseline_energy) * 100
     data["Annual Saving (SGD)"] = (baseline_energy - data["Total_kWh"]) * tariff
     data["Payback (yrs)"] = data["Retrofit Cost (SGD)"] / data["Annual Saving (SGD)"]
 
-    # === 5️⃣ Global Pareto front ===
+    # === 5️⃣ Compute global Pareto front ===
     def pareto_front(df, x_col, y_col):
         points = df[[x_col, y_col]].values
         is_dominated = np.zeros(len(points), dtype=bool)
@@ -576,7 +568,7 @@ with tabs[4]:
 
     pareto_df = pareto_front(data, "Energy Saving (%)", "Payback (yrs)").sort_values("Energy Saving (%)")
 
-    # === 6️⃣ User inputs ===
+    # === 6️⃣ User target sliders ===
     st.markdown("### 🎯 Set Your Targets")
     col1, col2 = st.columns(2)
     target_saving = col1.slider("Minimum Energy Saving (%)", 0, 50, 25, step=1)
@@ -585,7 +577,7 @@ with tabs[4]:
     feasible = data[
         (data["Energy Saving (%)"] >= target_saving) &
         (data["Payback (yrs)"] <= max_payback)
-    ]
+    ].copy()
 
     # === 7️⃣ Plot chart ===
     fig = go.Figure()
@@ -601,22 +593,21 @@ with tabs[4]:
     ))
 
     if not feasible.empty:
-    feasible = feasible.reset_index(drop=True)
-    feasible["Case_ID"] = feasible.index + 1  # ✅ add before selecting best_case
+        feasible = feasible.reset_index(drop=True)
+        feasible["Case_ID"] = feasible.index + 1
 
-    fig.add_trace(go.Scatter(
-        x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
-        mode="markers", name="Feasible Solutions",
-        marker=dict(color="#504e76", size=8)
-    ))
+        fig.add_trace(go.Scatter(
+            x=feasible["Energy Saving (%)"], y=feasible["Payback (yrs)"],
+            mode="markers", name="Feasible Solutions",
+            marker=dict(color="#504e76", size=8)
+        ))
 
-    best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).head(1).iloc[0]
-    fig.add_trace(go.Scatter(
-        x=[best_case["Energy Saving (%)"]], y=[best_case["Payback (yrs)"]],
-        mode="markers", name="Best Feasible Option",
-        marker=dict(color="#f1642e", size=11, line=dict(color="white", width=1))
-    ))
-
+        best_case = feasible.sort_values(by="Energy Saving (%)", ascending=False).iloc[0]
+        fig.add_trace(go.Scatter(
+            x=[best_case["Energy Saving (%)"]], y=[best_case["Payback (yrs)"]],
+            mode="markers", name="Best Feasible Option",
+            marker=dict(color="#f1642e", size=11, line=dict(color="white", width=1))
+        ))
 
     fig.update_yaxes(autorange="reversed", title="Payback (years)")
     fig.update_xaxes(title="Energy Saving (%)")
@@ -628,10 +619,8 @@ with tabs[4]:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # === 8️⃣ Feasible summary ===
+    # === 8️⃣ Display feasible results ===
     if not feasible.empty:
-        feasible = feasible.reset_index(drop=True)
-        feasible["Case_ID"] = feasible.index + 1
         st.success(f"{len(feasible)} feasible retrofit option(s) found meeting your targets.")
         show_cols = ["Case_ID","Glazing","Insulation","LPD_Wm2","HVAC_Setpoint_C",
                      "ShadingDepth_m","ScheduleAdj","LinearControl","HighAlbedoWall",
@@ -640,17 +629,17 @@ with tabs[4]:
 
         combo_info = f"""
         <p style='color:#f1642e; font-weight:bold; font-size:16px;'>
-            Best Feasible Option – Case {int(best_case['Case_ID'])}<br>
-            Glazing: {best_case['Glazing']} &nbsp;|&nbsp;
-            Insulation: {best_case['Insulation']} &nbsp;|&nbsp;
-            LPD: {best_case['LPD_Wm2']:.1f} W/m² &nbsp;|&nbsp;
-            HVAC: {best_case['HVAC_Setpoint_C']:.1f} °C &nbsp;|&nbsp;
-            Shading: {best_case['ShadingDepth_m']:.2f} m<br>
-            Schedule: {best_case['ScheduleAdj']} &nbsp;|&nbsp;
-            Linear Control: {best_case['LinearControl']} &nbsp;|&nbsp;
-            Albedo: {best_case['HighAlbedoWall']}<br>
-            Energy Saving: {best_case['Energy Saving (%)']:.1f}% &nbsp;|&nbsp;
-            Payback: {best_case['Payback (yrs)']:.1f} years
+            Best Feasible Option – Case {int(best_case["Case_ID"])}<br>
+            Glazing: {best_case["Glazing"]} &nbsp;|&nbsp;
+            Insulation: {best_case["Insulation"]} &nbsp;|&nbsp;
+            LPD: {best_case["LPD_Wm2"]:.1f} W/m² &nbsp;|&nbsp;
+            HVAC: {best_case["HVAC_Setpoint_C"]:.1f} °C &nbsp;|&nbsp;
+            Shading: {best_case["ShadingDepth_m"]:.2f} m<br>
+            Schedule: {best_case["ScheduleAdj"]} &nbsp;|&nbsp;
+            Linear Control: {best_case["LinearControl"]} &nbsp;|&nbsp;
+            Albedo: {best_case["HighAlbedoWall"]}<br>
+            Energy Saving: {best_case["Energy Saving (%)"]:.1f}% &nbsp;|&nbsp;
+            Payback: {best_case["Payback (yrs)"]:.1f} years
         </p>
         """
         st.markdown(combo_info, unsafe_allow_html=True)
@@ -665,5 +654,4 @@ with tabs[4]:
         <span style='color:#f1642e; font-weight:bold;'>Best feasible option</span> achieves the highest savings within your limits and is detailed above.
     </div>
     """, unsafe_allow_html=True)
-
 
