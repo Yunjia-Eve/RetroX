@@ -669,7 +669,7 @@ with tabs[4]:
 
     # === 8️⃣ 2D Contour Mode ===
     elif trade_type == "2D Contour":
-        st.markdown("### 🌈 2D Contour Analysis")
+        st.markdown("### 2D Contour Analysis")
         kpi_choice = st.selectbox("Select KPI:", ["Energy Saving (%)", "EUI (kWh/m²·yr)", "Payback (yrs)"])
         x_measure = st.selectbox(
             "X-axis measure:",
@@ -685,11 +685,11 @@ with tabs[4]:
         if x_measure == y_measure:
             st.warning("Please select two different measures.")
         else:
-            # determine type
+            # check variable types
             x_is_cat = data[x_measure].dtype == 'object'
             y_is_cat = data[y_measure].dtype == 'object'
     
-            # --- custom order dictionaries ---
+            # --- manual category order ---
             cat_order = {
                 "Glazing": ["Single", "Double", "LowE"],
                 "Insulation": ["Low", "Med", "High"],
@@ -698,24 +698,37 @@ with tabs[4]:
                 "HighAlbedoWall": ["Base", "Cool"]
             }
     
+            # --- define value grids ---
             if x_is_cat and y_is_cat:
-                # both categorical — manual order
+                # both categorical
                 x_levels = cat_order.get(x_measure, list(np.unique(data[x_measure])))
                 y_levels = cat_order.get(y_measure, list(np.unique(data[y_measure])))
                 combos = pd.MultiIndex.from_product([x_levels, y_levels], names=[x_measure, y_measure])
                 contour_df = pd.DataFrame(index=combos).reset_index()
     
             else:
-                # at least one continuous — numeric grid
-                grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30) if not x_is_cat else cat_order.get(x_measure, np.unique(data[x_measure]))
-                grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30) if not y_is_cat else cat_order.get(y_measure, np.unique(data[y_measure]))
-                X, Y = np.meshgrid(np.round(grid_x, 2), np.round(grid_y, 2))
+                # at least one continuous
+                if not x_is_cat:
+                    grid_x = np.linspace(data[x_measure].min(), data[x_measure].max(), 30)
+                else:
+                    grid_x = cat_order.get(x_measure, list(np.unique(data[x_measure])))
+    
+                if not y_is_cat:
+                    grid_y = np.linspace(data[y_measure].min(), data[y_measure].max(), 30)
+                else:
+                    grid_y = cat_order.get(y_measure, list(np.unique(data[y_measure])))
+    
+                # only round numeric grids
+                gx = np.round(grid_x, 2) if np.issubdtype(type(grid_x[0]), np.number) else grid_x
+                gy = np.round(grid_y, 2) if np.issubdtype(type(grid_y[0]), np.number) else grid_y
+    
+                X, Y = np.meshgrid(gx, gy)
                 contour_df = pd.DataFrame({
                     x_measure: X.flatten(),
                     y_measure: Y.flatten()
                 })
     
-            # --- fill defaults for other measures ---
+            # --- fill default values for other measures ---
             fixed_values = {
                 "Glazing": "LowE",
                 "Insulation": "High",
@@ -731,7 +744,7 @@ with tabs[4]:
                 if m not in [x_measure, y_measure]:
                     contour_df[m] = np.round(data[m].mean(), 2)
     
-            # --- predictions ---
+            # --- prediction ---
             contour_encoded = pd.get_dummies(contour_df, drop_first=False)
             for model in models.values():
                 for col in model.feature_names_in_:
@@ -745,9 +758,9 @@ with tabs[4]:
             contour_df["Energy Saving (%)"] = (1 - contour_df["Total_kWh"] / baseline_energy) * 100
             contour_df["Payback (yrs)"] = 50000 / ((baseline_energy - contour_df["Total_kWh"]) * tariff)
     
-            # --- reshape grid for plotting ---
+            # --- reshape for plotting ---
             if x_is_cat and y_is_cat:
-                # enforce categorical order before pivot
+                # enforce correct categorical order
                 contour_df[x_measure] = pd.Categorical(contour_df[x_measure], categories=cat_order.get(x_measure, np.unique(data[x_measure])), ordered=True)
                 contour_df[y_measure] = pd.Categorical(contour_df[y_measure], categories=cat_order.get(y_measure, np.unique(data[y_measure])), ordered=True)
     
@@ -758,10 +771,10 @@ with tabs[4]:
                     len(np.unique(contour_df[y_measure])),
                     len(np.unique(contour_df[x_measure]))
                 )
-                x_vals = np.unique(np.round(contour_df[x_measure], 2))
-                y_vals = np.unique(np.round(contour_df[y_measure], 2))
+                x_vals = np.unique(contour_df[x_measure])
+                y_vals = np.unique(contour_df[y_measure])
     
-            # --- color logic ---
+            # --- colorscale ---
             if not x_is_cat and not y_is_cat:
                 colorscale = [[0, "#a3b565"], [0.5, "#fcdd9d"], [1, "#c4c3e3"]]
             else:
@@ -788,12 +801,12 @@ with tabs[4]:
                 xaxis=dict(
                     tickmode='array',
                     tickvals=np.arange(len(Z.columns)) if x_is_cat and y_is_cat else x_vals,
-                    ticktext=list(Z.columns) if x_is_cat and y_is_cat else [f"{v:.2f}" for v in x_vals]
+                    ticktext=list(Z.columns) if x_is_cat and y_is_cat else [f"{v:.2f}" if isinstance(v, (int, float, np.floating)) else v for v in x_vals]
                 ),
                 yaxis=dict(
                     tickmode='array',
                     tickvals=np.arange(len(Z.index)) if x_is_cat and y_is_cat else y_vals,
-                    ticktext=list(Z.index) if x_is_cat and y_is_cat else [f"{v:.2f}" for v in y_vals]
+                    ticktext=list(Z.index) if x_is_cat and y_is_cat else [f"{v:.2f}" if isinstance(v, (int, float, np.floating)) else v for v in y_vals]
                 ),
                 font=dict(color="#243C2C"),
                 height=500
