@@ -1,4 +1,4 @@
-# RetroX Toolkit
+# RetroX SG Toolkit
 
 AI-assisted building retrofit optimization platform.
 
